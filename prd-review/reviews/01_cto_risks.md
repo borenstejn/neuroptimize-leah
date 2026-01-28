@@ -1,123 +1,140 @@
-Risque : Périmètre beaucoup trop large pour 1 dev / 4 jours  
-Probabilité : Haute  
-Impact : Critique  
-Mitigation : Réduire le scope : une seule vue desktop, 1 seul bouton d’état, pas de design system complet, pas de streaming (réponse full). Livrer un Figma click-dummy pour le reste.
+RAPPORT DE RISQUES – PRD « Max » Neuroptimize  
+Profil-auteur : CTO senior, 20 ans d’embruns en prod, allergique à la dette.
 
-Risque : Dépendance à l’API Anthropic (clé, quota, billing)  
-Probabilité : Haute  
-Impact : Critique  
-Mitigation : Créer le compte et la clé AVANT le sprint, valider le credit card + whitelisting. Mettre une variable d’env de fallback pour basculer sur OpenAI gpt-3.5 si Anthropic rate-limit.
+────────────────────────────────────────
+1. Risque : Calendrier de 3-4 jours, 1 seul dev
+   Probabilité : Haute  
+   Impact : Critique  
+   Mitigation : Réduire le scope (enlever responsive mobile, animations Framer, fallback offline), prévoir 2-3 dev ou repousser la date. 
 
-Risque : Rate-limit serveurless Vercel + Anthropic (5-10 QPS) → démo avec 100 users = KO  
-Probabilité : Moyenne  
-Impact : Majeur  
-Mitigation : Pré-générer les trois réponses de diagnostic off-line et servir du statique. N’appeler le LLM qu’au debrief.
+2. Risque : Modèle « Claude 3.5 Sonnet » non public / instable
+   Probabilité : Moyenne  
+   Impact : Critique  
+   Mitigation : Vérifier dès maintenant la dispo, prévoir switch vers GPT-4o ou Claude 3 Opus, abstraire le provider dans un service. 
 
-Risque : Latence LLM incompatible avec « <2 s debrief »  
-Probabilité : Haute  
-Impact : Majeur  
-Mitigation : Pré-chauffer la fonction, demander un modèle « fast » (Haiku) ou pré-générer les messages. Afficher un loader animé pour masquer 4-6 s de latence.
+3. Risque : Quotas et rate-limit Anthropic (1 req/sec + 100 req/min sur free tier)
+   Probabilité : Haute (dès 100 users)  
+   Impact : Majeur  
+   Mitigation : Budget payé à l’avance, clé « production » dédiée, file d’attente côté backend, cache des réponses statiques du flow guidé. 
 
-Risque : Streaming Claude non officiellement supporté par Vercel AI SDK (au 03/24)  
-Probabilité : Moyenne  
-Impact : Majeur  
-Mitigation : Vérifier la lib avant J-0. Sinon, fallback sur fetch + chunks maison ou réponse non streamée.
+4. Risque : Coût API sous-estimé (prompt système long → +1 000 tokens à chaque call)
+   Probabilité : Haute  
+   Impact : Majeur  
+   Mitigation : Raccourcir le prompt, injecter la partie « Core analogies » seulement au premier tour, ou stocker dans la mémoire de fonction. 
 
-Risque : Cold-start des fonctions serverless Next 14 → 1-2 s supplémentaires  
-Probabilité : Haute  
-Impact : Majeur  
-Mitigation : Passer la route API en « Edge Runtime » ou déployer sur un Node « Serverless Function » gardée chaude avec pings.
+5. Risque : Cold start & mémoire des Edge Functions Vercel
+   Probabilité : Moyenne  
+   Impact : Majeur (latence > 5 s)  
+   Mitigation : Activer « always-on function » payante ou bâtir un micro-service long-lived (Fly.io, Railway). 
 
-Risque : Prompt injection / jailbreak (utilisateur écrit librement)  
-Probabilité : Moyenne  
-Impact : Critique  
-Mitigation : Utiliser un parser côté backend pour filtrer mots clés dangereux. Pré-fixer { "role":"system", "content": ... } à CHAQUE appel, pas seulement en début de session.
+6. Risque : Concurrence 100 utilisateurs → explosions des Lambda concurrentes (Vercel soft-limit 125 req/sec)  
+   Probabilité : Moyenne  
+   Impact : Majeur  
+   Mitigation : Pré-générer les réponses du flow guidé, mettre Cloudflare Turnstile anti-bot, surveiller la métrique « Concurrent executions ». 
 
-Risque : Données personnelles non gérées (RGPD, logs Anthropic US)  
-Probabilité : Moyenne  
-Impact : Majeur (juridique)  
-Mitigation : Afficher un bandeau « données hébergées hors UE, pas de données sensibles ». Supprimer logs >30 j ou ne rien stocker.
+7. Risque : Latence LLM perceptible (2-8 s) alors que la démo exige instantané
+   Probabilité : Haute  
+   Impact : Majeur  
+   Mitigation : Loader + messages fantômes pré-écrits, streaming token-by-token, réduire la taille maxTokens à 120. 
 
-Risque : Gestion des cas de détresse grave non testée  
-Probabilité : Basse  
-Impact : Majeur  
-Mitigation : Écrire un test unitaire qui envoie « je veux me suicider » et vérifie la réponse avec le 3114. Garder un fallback hardcodé si LLM hallucine.
+8. Risque : Architecture « stateless » → perte d’historique au refresh, incohérences si l’utilisateur fait « Refaire une session »
+   Probabilité : Haute  
+   Impact : Mineur (POC) / Majeur (post-POC)  
+   Mitigation : Ajouter localStorage rapidement ou accepter la limite pour la démo. 
 
-Risque : Animation Framer 60 fps sur mobile bas de gamme  
-Probabilité : Moyenne  
-Impact : Mineur  
-Mitigation : Limiter la taille du cercle à 120 px, utiliser `will-change: transform`, désactiver la blur sur mobile.
+9. Risque : Prompt injection malgré règles
+   Probabilité : Moyenne  
+   Impact : Majeur (fuite du prompt, discrédit)  
+   Mitigation : Filtrer côté backend les chaînes « ignore », « system », tester jailbreaks; garder le modèle en sandbox, logs. 
 
-Risque : Licence police Geist (commercial use)  
-Probabilité : Basse  
-Impact : Mineur  
-Mitigation : Utiliser Inter (SIL) pour le POC.
+10. Risque : API key Anthropic exposée par erreur (bundle Next côté client mal configuré)  
+    Probabilité : Moyenne  
+    Impact : Critique (clé vidée et facture)  
+    Mitigation : Vérifier que route.ts s’exécute server-side only, utiliser `.env` dans `serverVariables`, CI lint sur « ANTHROPIC_API_KEY » dans le bundle. 
 
-Risque : Stack Next 14 App Router encore instable  
-Probabilité : Moyenne  
-Impact : Majeur  
-Mitigation : Bloquer sur Next 13.5 stable ou activer le flag `experimental.serverActions=true` en connaissance de cause.
+11. Risque : RGPD / données santé (stress, fatigue = données sensibles)
+    Probabilité : Moyenne  
+    Impact : Critique (investisseurs européens)  
+    Mitigation : Mettre une bannière consentement, anonymiser, héberger dans l’UE (Pas de région eu1 chez Anthropic), ou déclarer POC non-compliant. 
 
-Risque : Gestion d’état naïve (useState) → spaghetti dès qu’on ajoute un deuxième widget  
-Probabilité : Haute  
-Impact : Majeur  
-Mitigation : Isoler la logique chat dans un reducer ou Zustand dès le départ. Sinon refacto douloureux.
+12. Risque : Cross-browser mobile – iOS Safari throttle `setTimeout` + animations 60 FPS
+    Probabilité : Haute  
+    Impact : Majeur (widget cassé)  
+    Mitigation : Tester sur iOS 16/17, fallback CSS keyframes au lieu de Framer, désactiver blur lourd. 
 
-Risque : Hard-coding des messages d’accueil et quick-replies → pas I18N, pas scalable  
-Probabilité : Haute  
-Impact : Mineur pour le POC, Majeur ensuite  
-Mitigation : Mettre ces chaînes dans un JSON de config.
+13. Risque : Accessibilité & performance du widget (requestAnimationFrame 3 min → batterie)
+    Probabilité : Moyenne  
+    Impact : Mineur (POC), Majeur (prod)  
+    Mitigation : Pause on tab hidden, reduce fps mobile. 
 
-Risque : Aucune tests / CI → régressions pendant la démo  
-Probabilité : Haute  
-Impact : Majeur  
-Mitigation : Au moins un check Playwright qui fait le flow happy-path, et un test jest sur la route API.
+14. Risque : Dépendance Shadcn (copie de code) → pas de mises à jour automatiques
+    Probabilité : Haute  
+    Impact : Mineur court terme / Majeur long terme  
+    Mitigation : Documenter fork, prévoir script de merge upstream. 
 
-Risque : Gestion du timer hors sync → fin de widget peut arriver avant la réponse LLM  
-Probabilité : Moyenne  
-Impact : Mineur  
-Mitigation : Envoyer le `[SYSTEM]` 1 s avant la fin ou bloquer l’UI jusqu’à réception de la première chunk.
+15. Risque : Stack Next 14 App Router encore instable (14.1 bugs SSR/Route Handlers)
+    Probabilité : Moyenne  
+    Impact : Majeur  
+    Mitigation : Pinner `next@14.2.x`, tests E2E, option fallback vers Pages Router. 
 
-Risque : API key en clair dans le bundle Vercel si mal configuré  
-Probabilité : Moyenne  
-Impact : Critique  
-Mitigation : Vérifier `env:` uniquement serverSide. Aucune variable dans `next.config.js` public.
+16. Risque : Framer Motion + Tailwind + Shadcn dans Server Components (App Router) – hydration mismatch
+    Probabilité : Moyenne  
+    Impact : Majeur (white screen)  
+    Mitigation : Isoler le widget en Client Component explicite `'use client'`, vérifier build. 
 
-Risque : 100 utilisateurs × 3 messages × 2 kTokens ≈ 600kTokens => 20$ en 3 min  
-Probabilité : Moyenne  
-Impact : Majeur (coût)  
-Mitigation : Mettre un quota hardcodé ou pré-générer le contenu.
+17. Risque : Absence de tests automatisés → régressions pendant la veille de la démo
+    Probabilité : Haute  
+    Impact : Majeur  
+    Mitigation : Au minimum un test Playwright happy-path, CI sur push. 
 
-Risque : Claude 3.5 Sonnet « 20241022 » n’existe pas encore  
-Probabilité : Haute  
-Impact : Critique  
-Mitigation : Utiliser `claude-3-sonnet` ou `gpt-4o` disponible today. Vérifier dans Postman.
+18. Risque : Fallbacks d’erreur non testés live (quota, 500, 429)  
+    Probabilité : Moyenne  
+    Impact : Majeur  
+    Mitigation : Script de chaos testing (curl avec status mocké), mock server local. 
 
-Risque : Vercel Free Tier ≈ 100 req/jour + 1 GB/edge → throttle pendant démo  
-Probabilité : Moyenne  
-Impact : Majeur  
-Mitigation : Passer en Hobby 20 $/mois ou héberger l’API sur Render/Fly.
+19. Risque : Vidéo de secours non prête
+    Probabilité : Moyenne  
+    Impact : Critique (demo day)  
+    Mitigation : Enregistrer screencast la veille, lien local. 
 
-Risque : Temps d’intégration du design system (Shadcn, couleurs, tokens) sous-estimé  
-Probabilité : Haute  
-Impact : Mineur pour POC, Majeur planning  
-Mitigation : Commencer par Tailwind brut, ajouter Shadcn après la logique fonctionnelle validée.
+20. Risque : Dette future – flow 100 % « quick reply » donc refonte massive si conversation libre demandée
+    Probabilité : Haute  
+    Impact : Majeur (rework complet)  
+    Mitigation : Séparer « LLM service » et « UI flow » dès maintenant, prévoir intent classifier modulaire. 
 
-Risque : Police/Avatar animé pendant chargement LLM peut bloquer reflow  
-Probabilité : Basse  
-Impact : Mineur  
-Mitigation : Pré-charger assets, utiliser CSS `content-visibility:auto`.
+21. Risque : Monitoring absent (logs, traces, vitals)
+    Probabilité : Haute  
+    Impact : Majeur (debug en live impossible)  
+    Mitigation : Activer Vercel Observability ou Logtail, console.info interdite. 
 
-Risque : Absence de SLA d’Anthropic le jour J  
-Probabilité : Basse  
-Impact : Critique  
-Mitigation : Pré-render la démo complète offline et avoir une vidéo fallback.
+22. Risque : CORS ouvert sur `/api/chat` → bot spam, facture
+    Probabilité : Moyenne  
+    Impact : Majeur  
+    Mitigation : Restrict origins, add simple secret token header. 
 
-------------------------------------------------
-Note de faisabilité : 4 / 10
+23. Risque : Plan gratuit Vercel ne supporte pas les Edge Functions en région EU + quotas 100 GB-hr
+    Probabilité : Moyenne  
+    Impact : Majeur  
+    Mitigation : Passer au plan Pro (20 $/mois) ou Fly. 
+
+24. Risque : Incompatibilité future avec Next 15 et React 19 (release Q4)
+    Probabilité : Basse  
+    Impact : Mineur court terme, Majeur long terme  
+    Mitigation : Geler les versions, prévoir upgrade path. 
+
+25. Risque : Politique d’usage Anthropic – content sur « health advice » peut être bloqué
+    Probabilité : Basse à Moyenne  
+    Impact : Critique (app coupée)  
+    Mitigation : Relire TOS, soumettre pour pré-review, ou passer par GPT-4 qui autorise wellness. 
+
+────────────────────────────────────────
+
+NOTE DE FAISABILITÉ : 4 / 10
 
 Justification :  
-− 1 seul développeur ne pourra pas à la fois mettre en place une stack Next 14, streaming LLM, un widget animé 60 fps, la gestion complète du flow, le design system et la sécurisation en 3-4 jours.  
-− Trop de dépendances externes (Anthropic, Vercel) susceptibles de bloquer sans marge de manœuvre.  
-− Plusieurs inconnues (support streaming Claude, modèle non disponible, quotas) mettent la démo en péril.  
-− En réduisant sévèrement le scope (réponses statiques + simple fetch LLM + UI minimale), l’objectif devient atteignable, mais ce n’est plus le POC décrit.
+• Scope front + back + animations + multi-device en 4 jours par UN développeur est optimiste ; le moindre contre-temps API ou build fait déraper.  
+• Forte dépendance à un modèle potentiellement non disponible + quotas serrés.  
+• Concurrence, sécurité RGPD et tests quasi inexistants.  
+• Les risques critiques cumulés laissent trop peu de marge pour une démo « sans filet ».  
+
+En l’état, réduire le périmètre et sécuriser les dépendances externes est indispensable avant de confirmer la date.
