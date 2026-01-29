@@ -2,9 +2,11 @@
 
 > **Objectif:** Construire le POC complet en suivant le PRD v5.2 avec ralph-loop
 
-**Total:** 23 tickets
-**Priorité P0 (Must Have):** 19 tickets
+**Total:** 24 tickets
+**Priorité P0 (Must Have):** 20 tickets
 **Priorité P1 (Nice to Have):** 4 tickets
+
+⚡ **Nouveauté:** Tous les tickets P0 incluent maintenant des tests automatisés et scripts de validation
 
 ---
 
@@ -108,18 +110,25 @@
 
 ---
 
-### Phase 7: Tests & Validation (Ticket #17, #23)
+### Phase 7: Tests & Validation (Tickets #17, #23, #24)
 
-**Ordre d'exécution:** 17 → 23
+**Ordre d'exécution:** 17 → 24 → 23
 
 | # | Ticket | Priorité | Durée estimée |
 |---|--------|----------|---------------|
 | #17 | Implémenter les tests manuels et créer la checklist de validation | P0 | 1h |
+| #24 | Créer les tests E2E automatisés avec Playwright | P0 | 1h30 |
 | #23 | Validation finale et intégration complète avant démo | P0 | 2h |
 
-**Dépendances:** #17 et #23 dépendent de TOUTE l'application
+**Dépendances:** #17, #23, #24 dépendent de TOUTE l'application
 
-**Livrable:** POC validé et prêt pour démo
+**Livrable:** POC validé avec tests automatisés et prêt pour démo
+
+**Tests inclus:**
+- Tests E2E automatisés (Playwright)
+- Script de validation automatique (`scripts/validate.sh`)
+- Checklist de tests manuels
+- Tests de build, déploiement, performance
 
 ---
 
@@ -180,9 +189,9 @@
 
 **Checkpoint 11h:** Application complète assemblée
 
-**Tests & Validation (1h):**
+**Tests & Validation (2h30):**
 ```
-#17 → #23
+#17 → #24 → #23
 ```
 
 **Déploiement & Démo (1h):**
@@ -216,8 +225,92 @@
 
 ### Nice to Have
 - [ ] Son "bip" à chaque activation
-- [ ] Lighthouse Performance >90
-- [ ] Tests automatisés (Jest/Vitest)
+- [ ] Tests unitaires supplémentaires (Jest/Vitest)
+
+### Tests Automatisés (Inclus dans P0)
+- [x] Script de validation automatique (`scripts/validate.sh`) - Ticket #23
+- [x] Tests E2E avec Playwright - Ticket #24
+- [x] Tests de build et TypeScript - Ticket #1
+- [x] Tests API avec curl - Ticket #13
+- [x] Tests de déploiement Vercel - Ticket #18
+- [x] Tests de validation des assets - Ticket #19
+- [x] Lighthouse Performance >80 - Ticket #23
+
+---
+
+## 🧪 Stratégie de Tests
+
+### Tests Automatisés (Exécutés par ralph-loop)
+
+Chaque ticket P0 inclut des **tests de validation automatiques** qui doivent passer avant de considérer le ticket complété.
+
+**Types de tests:**
+
+1. **Tests de Build**
+   ```bash
+   npm run build
+   npx tsc --noEmit
+   ```
+   - Vérification: compilation sans erreur
+   - Tickets: #1, #2, #3, #4, tous les composants
+
+2. **Tests E2E (Playwright)**
+   ```bash
+   npm run test:e2e
+   ```
+   - Flow complet de l'exercice
+   - Gestion des erreurs et fallbacks
+   - Accessibilité
+   - Tickets: #24 (création des tests), #23 (exécution)
+
+3. **Tests API**
+   ```bash
+   curl -X POST http://localhost:3000/api/chat -H "Content-Type: application/json" -d '{"messages":[...]}'
+   ```
+   - Route API répond (200)
+   - Timeout et fallback fonctionnent
+   - Ticket: #13
+
+4. **Tests de Déploiement**
+   ```bash
+   vercel --prod
+   curl -s https://neuroptimize-poc.vercel.app
+   ```
+   - Build Vercel réussit
+   - URL publique accessible
+   - Variables d'environnement configurées
+   - Ticket: #18
+
+5. **Tests de Performance**
+   ```bash
+   npx lighthouse http://localhost:3000 --only-categories=performance
+   ```
+   - Score Lighthouse >80
+   - Animations 60fps (DevTools Performance)
+   - Temps de chargement <2s
+   - Ticket: #23
+
+6. **Tests de Validation Assets**
+   ```bash
+   xmllint --noout public/max-avatar.svg
+   test -f public/favicon.ico
+   ```
+   - SVG valide
+   - Favicon existe et accessible
+   - Assets servis correctement
+   - Ticket: #19
+
+### Tests Manuels (Checklist)
+
+En complément des tests automatisés, une checklist de tests manuels est disponible dans:
+- `TESTING_CHECKLIST.md` (Ticket #17)
+- Ticket #23 (validation finale)
+
+**Critères de passage:**
+- Tous les tests automatisés passent (exit code 0)
+- Tous les checkboxes de la checklist manuelle cochés
+- Aucune console error dans DevTools
+- Flow complet end-to-end fonctionne
 
 ---
 
@@ -256,9 +349,16 @@
 
 **Critères d'acceptation par ticket:**
 - Tous les checkbox cochés
+- **Tests automatisés passent** (voir section "Tests de validation" dans chaque ticket)
 - Commit git avec message clair
-- Tests manuels passés
+- Tests manuels passés (si applicable)
 - Pas de console errors
+- Code compilé sans erreur TypeScript
+
+**Important:** Un ticket n'est considéré comme complété que si:
+1. Le code est fonctionnel
+2. Les tests automatisés passent (exit code 0)
+3. Le commit est fait avec un message descriptif
 
 ---
 
