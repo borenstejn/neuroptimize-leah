@@ -1083,22 +1083,23 @@ chmod +x scripts/validate.sh
 
 ## Phase 8: Déploiement & Documentation
 
-### Ticket #18 - Déploiement Vercel
+### Ticket #18 - Déploiement Vercel ✅
 
 **Priorité:** P0
 **Durée estimée:** 1h
 **Dépendances:** Application complète
+**Statut:** ✅ COMPLÉTÉ
 
 **Description:**
 Configurer le déploiement Vercel et variables d'environnement.
 
 **Critères d'acceptation:**
-- [ ] Compte Vercel configuré
-- [ ] Projet lié à Vercel CLI
-- [ ] Variable `ANTHROPIC_API_KEY` configurée (optionnel pour P1 #13)
-- [ ] Build Vercel réussit
-- [ ] URL production accessible
-- [ ] Tests post-déploiement passent
+- [x] Compte Vercel configuré
+- [x] Projet lié à Vercel CLI
+- [ ] Variable `ANTHROPIC_API_KEY` configurée (optionnel pour P1 #13 - non implémenté)
+- [x] Build Vercel réussit (3.8s)
+- [x] URL production accessible (https://neuroptimize-leah.vercel.app)
+- [x] Tests post-déploiement passent (HTML valide, application fonctionnelle)
 
 **Tests de validation:**
 ```bash

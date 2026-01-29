@@ -80,6 +80,14 @@ npm start
 
 L'application sera accessible sur http://localhost:3000
 
+## 🌐 Démo en Ligne
+
+L'application est déployée sur Vercel :
+
+**URL de production** : https://neuroptimize-leah.vercel.app
+
+Pour déployer votre propre version, consultez [DEPLOYMENT.md](./DEPLOYMENT.md).
+
 ## 🧪 Tests
 
 ```bash
