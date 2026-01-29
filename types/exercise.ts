@@ -86,4 +86,5 @@ export type NeuralNetworkProps = {
   userSequence: Position[];
   phase: ExercisePhase;
   onNeuronClick: (position: Position) => void;
+  encodingIndex?: number;
 };
