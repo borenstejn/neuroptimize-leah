@@ -13,6 +13,7 @@ import type {
   Message
 } from '@/types/exercise';
 import { useSequenceGenerator, isSamePosition } from './useSequenceGenerator';
+import { useSound } from './useSound';
 import {
   INITIAL_LEVEL,
   MIN_LEVEL,
@@ -45,6 +46,9 @@ export function useExerciseState() {
   // Génération de la séquence
   const currentSequence = useSequenceGenerator(level);
 
+  // Son "bip" pour activation neurone (Ticket #21)
+  const sound = useSound(800, 50, 0.3);
+
   // Refs pour les timers
   const encodingTimerRef = useRef<NodeJS.Timeout | null>(null);
   const retentionTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -70,11 +74,31 @@ export function useExerciseState() {
       { role: 'assistant', content: FALLBACK_MESSAGES.encoding },
     ]);
 
+    // Animation progressive de l'encoding avec son
+    let currentIndex = 0;
+    const encodingTimers: NodeJS.Timeout[] = [];
+
+    const animateEncoding = () => {
+      if (currentIndex < currentSequence.length) {
+        setEncodingIndex(currentIndex + 1);
+        sound.play(); // Jouer le son "bip" (Ticket #21)
+        currentIndex++;
+        const timer = setTimeout(animateEncoding, ENCODING_DURATION);
+        encodingTimers.push(timer);
+      }
+    };
+
+    // Démarrer l'animation
+    animateEncoding();
+
     // Durée totale de l'encoding (500ms par neurone)
     const totalEncodingDuration = currentSequence.length * ENCODING_DURATION;
 
     // Transition vers retention après l'encoding
     encodingTimerRef.current = setTimeout(() => {
+      // Nettoyer les timers d'encoding
+      encodingTimers.forEach(clearTimeout);
+
       setPhase('retention');
       setMessages((prev) => [
         ...prev,
@@ -90,7 +114,7 @@ export function useExerciseState() {
         ]);
       }, RETENTION_DELAY);
     }, totalEncodingDuration);
-  }, [currentSequence.length]);
+  }, [currentSequence.length, sound]);
 
   /**
    * Gestion du clic sur un neurone
@@ -98,6 +122,9 @@ export function useExerciseState() {
   const handleNeuronClick = useCallback(
     (position: Position) => {
       if (phase !== 'recall') return;
+
+      // Jouer le son lors du clic (Ticket #21)
+      sound.play();
 
       const newUserSequence = [...userSequence, position];
       setUserSequence(newUserSequence);
@@ -243,5 +270,9 @@ export function useExerciseState() {
     stopExercise,
     clearSelection,
     continueExercise,
+
+    // Contrôles audio (Ticket #21)
+    isSoundMuted: sound.isMuted,
+    toggleSound: sound.toggleMute,
   };
 }

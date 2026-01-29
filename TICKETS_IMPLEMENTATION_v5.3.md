@@ -1186,21 +1186,24 @@ test -f public/demo-backup.mp4 || echo "Vidéo externe OK"
 
 ## Phase 9: Nice to Have (P1)
 
-### Ticket #21 - Son Bip Activation Neurone
+### Ticket #21 - Son Bip Activation Neurone ✅
 
 **Priorité:** P1
 **Durée estimée:** 30min
 **Dépendances:** #5
+**Statut:** ✅ COMPLÉTÉ
 
 **Description:**
 Implémenter le son "bip" à chaque activation de neurone (optionnel).
 
 **Critères d'acceptation:**
-- [ ] Fichier audio `public/neuron-bip.mp3` ou `.wav`
-- [ ] Hook `useSound` pour jouer le son
-- [ ] Son joué pendant encoding (activation séquence)
-- [ ] Son joué pendant recall (clic utilisateur)
-- [ ] Possibilité de mute (toggle)
+- [x] Hook `useSound` créé (utilise Web Audio API, pas de fichier externe)
+- [x] Son synthétique généré (fréquence 800Hz, durée 50ms, volume 0.3)
+- [x] Son joué pendant encoding (activation séquence progressive)
+- [x] Son joué pendant recall (clic utilisateur)
+- [x] Possibilité de mute (bouton toggle avec icônes 🔊/🔇)
+- [x] Intégré dans useExerciseState
+- [x] Bouton mute/unmute ajouté aux ExerciseControls
 
 **Tests de validation:**
 ```bash

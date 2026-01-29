@@ -11,6 +11,8 @@ export type ExerciseControlsProps = {
   canClear: boolean;
   onStop: () => void;
   onClear: () => void;
+  isSoundMuted?: boolean;
+  onToggleSound?: () => void;
 };
 
 export function ExerciseControls({
@@ -18,9 +20,11 @@ export function ExerciseControls({
   canClear,
   onStop,
   onClear,
+  isSoundMuted = false,
+  onToggleSound,
 }: ExerciseControlsProps) {
   return (
-    <div className="flex gap-3 justify-center mt-4">
+    <div className="flex gap-3 justify-center mt-4 flex-wrap">
       {/* Bouton Arrêter - toujours visible si canStop */}
       {canStop && (
         <button
@@ -40,6 +44,18 @@ export function ExerciseControls({
           aria-label="Effacer la sélection"
         >
           Effacer la sélection
+        </button>
+      )}
+
+      {/* Bouton Mute/Unmute Son - toujours visible (Ticket #21) */}
+      {onToggleSound && (
+        <button
+          onClick={onToggleSound}
+          className="px-4 py-2 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg font-medium shadow-sm transition-all duration-200 hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2"
+          aria-label={isSoundMuted ? 'Activer le son' : 'Désactiver le son'}
+          title={isSoundMuted ? 'Activer le son' : 'Désactiver le son'}
+        >
+          {isSoundMuted ? '🔇' : '🔊'}
         </button>
       )}
     </div>

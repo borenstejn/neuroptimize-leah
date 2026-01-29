@@ -49,6 +49,8 @@ export default function HomePage() {
               canClear={exercise.canClearSelection}
               onStop={exercise.stopExercise}
               onClear={exercise.clearSelection}
+              isSoundMuted={exercise.isSoundMuted}
+              onToggleSound={exercise.toggleSound}
             />
           </div>
         </div>
