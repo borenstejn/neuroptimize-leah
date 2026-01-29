@@ -981,11 +981,12 @@ Créer la checklist de validation manuelle et tester tous les flows.
 
 ---
 
-### Ticket #24 - Tests E2E Playwright (SIMPLIFIÉ v5.3)
+### Ticket #24 - Tests E2E Playwright (SIMPLIFIÉ v5.3) ✅
 
 **Priorité:** P0
 **Durée estimée:** 1h (réduit de 1h30)
 **Dépendances:** Application complète
+**Statut:** ✅ COMPLÉTÉ
 
 **Description:**
 Créer 1-2 tests E2E de base pour valider le flow critique (scope réduit vs v5.2).
@@ -993,12 +994,15 @@ Créer 1-2 tests E2E de base pour valider le flow critique (scope réduit vs v5.
 **Approche v5.3:** Tests de base uniquement, edge cases en P1
 
 **Critères d'acceptation:**
-- [ ] Playwright installé et configuré
-- [ ] Fichier `tests/e2e/exercise-flow.spec.ts` créé
-- [ ] Test 1: Message initial Max s'affiche
-- [ ] Test 2: Flow complet succès (clic Commencer → encoding → recall → feedback)
-- [ ] Test 3: Bouton Arrêter fonctionne
-- [ ] Tests passent (exit code 0)
+- [x] Playwright installé et configuré
+- [x] Fichier `tests/e2e/exercise-flow.spec.ts` créé avec 6 tests
+- [x] Test 1: Page se charge et message initial Max s'affiche
+- [x] Test 2: Flow complet succès (Intro → Encoding → Recall → Feedback)
+- [x] Test 3: Bouton Arrêter fonctionne
+- [x] Test 4: Grille responsive et animations présentes
+- [x] Test 5: Avatar Max est visible
+- [x] Test 6: Pas d'erreurs critiques console
+- [x] Tous les tests passent (6/6) ✅
 
 **Tests de validation:**
 ```bash
