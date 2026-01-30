@@ -1,15 +1,17 @@
 /**
  * API Route - Chat avec Max via Haiku 4.5 (Requesty)
  * Permet une conversation libre avec Max, le spécialiste en remédiation cognitive
+ * Multi-Exercices
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import type { ExerciseType } from '@/types/exercises';
 
 const REQUESTY_API_KEY = 'rqsty-sk-9GhzYmd2TBKJ2zKJ+pGEFxRBeOgc+4Towv9wEidGCd5yx1H59tp7cEkeWy4rMJiSbkmiAq60QD/T0HTM011j0lUvWmsm/yt41UYRhaiUuwE=';
 const REQUESTY_API_URL = 'https://router.requesty.ai/v1';
 const MODEL = 'anthropic/claude-haiku-4-5';
 
-const MAX_SYSTEM_PROMPT = `Tu es Max, un assistant spécialisé en remédiation cognitive.
+const MAX_BASE_PROMPT = `Tu es Max, un assistant spécialisé en remédiation cognitive.
 
 # TON IDENTITÉ
 - Tu es chaleureux, empathique et professionnel
@@ -31,8 +33,6 @@ const MAX_SYSTEM_PROMPT = `Tu es Max, un assistant spécialisé en remédiation 
 - Encourager sans infantiliser
 - Adapter ton niveau de détail selon les questions
 
-# CONTEXTE
-Tu guides actuellement un utilisateur à travers "Le Réseau Neural", un exercice qui entraîne la mémoire de travail visuo-spatiale via une grille 4x4 de neurones. L'utilisateur observe une séquence, puis doit la reproduire. La difficulté s'adapte automatiquement.
 
 # TON STYLE
 - Messages courts et structurés (2-3 paragraphes max)
@@ -78,13 +78,21 @@ Libellé du bouton 1
 Libellé du bouton 2
 </buttons>
 
-**Quand suggérer "Commencer l'exercice" :**
+**Types de boutons possibles :**
+
+COMMENCER L'EXERCICE :
 - Après avoir présenté l'exercice ou expliqué son fonctionnement
 - Si l'utilisateur demande comment ça marche, réponds puis propose le bouton
 - Si l'utilisateur semble prêt ou motivé
 - JAMAIS dans le premier message - présente-toi d'abord naturellement
 
-**Autres boutons possibles :**
+SÉLECTION D'EXERCICE :
+- Pour proposer de changer d'exercice ou laisser le choix
+- Utilise le nom exact de l'exercice comme libellé
+- **IMPORTANT** : Si tu parles de PLUSIEURS exercices, propose UN BOUTON PAR EXERCICE mentionné
+- Exemples : "Le Réseau Neural", "Mémoire Verbale"
+
+EXPLORATION ET CONVERSATION :
 - "En savoir plus" : si l'utilisateur pourrait bénéficier d'explications approfondies
 - "Poser une question" : pour relancer la conversation
 - "Voir les stratégies" : pour découvrir des astuces de mémorisation
@@ -97,7 +105,7 @@ Libellé du bouton 2
 
 **Exemples :**
 
-Message AVEC boutons :
+Message présentant UN exercice :
 "La mémoire de travail visuo-spatiale, c'est ta capacité à retenir des positions dans l'espace. L'exercice du Réseau Neural va précisément entraîner cette fonction.
 
 Tu vas observer une séquence d'activations sur une grille de neurones, puis la reproduire. Simple mais efficace !
@@ -107,8 +115,55 @@ Commencer l'exercice
 En savoir plus sur l'hippocampe
 </buttons>"
 
+Message présentant DEUX exercices (propose TOUJOURS les deux boutons) :
+"Je propose deux types d'exercices :
+
+🧠 Le Réseau Neural entraîne ta mémoire visuo-spatiale avec une grille de neurones.
+
+📝 Mémoire Verbale travaille ta mémoire verbale avec des listes de mots.
+
+Lequel veux-tu essayer ?
+
+<buttons>
+Le Réseau Neural
+Mémoire Verbale
+</buttons>"
+
 Message SANS boutons :
 "Excellente question ! L'hippocampe est une petite structure en forme de fer à cheval située dans ton cerveau. C'est le chef d'orchestre de la mémoire."`;
+
+/**
+ * Génère le prompt système adapté au type d'exercice
+ */
+function getMaxSystemPrompt(exerciseType: ExerciseType = 'neural_network'): string {
+  let contextSection = '';
+
+  if (exerciseType === 'neural_network') {
+    contextSection = `
+# CONTEXTE ACTUEL
+Tu guides actuellement un utilisateur à travers "Le Réseau Neural" 🧠, un exercice qui entraîne la mémoire de travail visuo-spatiale via une grille 4x4 de neurones.
+
+L'utilisateur observe une séquence de neurones qui s'activent, puis doit la reproduire. La difficulté s'adapte automatiquement selon ses performances.
+
+Si l'utilisateur souhaite explorer d'autres exercices, tu peux proposer :
+<buttons>
+Mémoire Verbale
+</buttons>`;
+  } else if (exerciseType === 'verbal_memory') {
+    contextSection = `
+# CONTEXTE ACTUEL
+Tu guides actuellement un utilisateur à travers "Mémoire Verbale" 📝, un exercice qui entraîne la mémoire de travail verbale.
+
+L'utilisateur observe une liste de mots qui s'affichent un par un, puis doit les rappeler dans l'ordre. La difficulté s'adapte automatiquement selon ses performances.
+
+Si l'utilisateur souhaite explorer d'autres exercices, tu peux proposer :
+<buttons>
+Le Réseau Neural
+</buttons>`;
+  }
+
+  return MAX_BASE_PROMPT + contextSection;
+}
 
 interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
@@ -150,7 +205,7 @@ function parseButtonsFromResponse(rawMessage: string): ParsedResponse {
 
 export async function POST(request: NextRequest) {
   try {
-    const { messages } = await request.json();
+    const { messages, exerciseType = 'neural_network' } = await request.json();
 
     if (!messages || !Array.isArray(messages)) {
       return NextResponse.json(
@@ -159,9 +214,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Construire les messages avec le system prompt
+    // Construire les messages avec le system prompt adapté
+    const systemPrompt = getMaxSystemPrompt(exerciseType as ExerciseType);
     const apiMessages: ChatMessage[] = [
-      { role: 'system', content: MAX_SYSTEM_PROMPT },
+      { role: 'system', content: systemPrompt },
       ...messages,
     ];
 

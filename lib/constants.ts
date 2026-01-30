@@ -6,16 +6,16 @@
 // Grille
 export const GRID_SIZE = 4; // Grille 4x4 (16 neurones)
 
-// Timings (en millisecondes)
-export const ENCODING_DURATION = 500; // Durée d'activation de chaque neurone
-export const RETENTION_DELAY = 2000; // Délai entre encoding et recall
+// Timings (en millisecondes) - Ralentis pour la démo
+export const ENCODING_DURATION = 1000; // Durée d'activation de chaque élément (1 seconde)
+export const RETENTION_DELAY = 3000; // Délai entre encoding et recall (3 secondes)
 export const ANIMATION_DURATION = 300; // Durée des transitions CSS
 export const TYPING_INDICATOR_DELAY = 1500; // Temps d'affichage du typing indicator
 
 // Niveaux de difficulté
 export const MIN_LEVEL = 3; // Minimum d'éléments à mémoriser
 export const MAX_LEVEL = 12; // Maximum d'éléments à mémoriser
-export const INITIAL_LEVEL = 5; // Niveau de départ
+export const INITIAL_LEVEL = 3; // Niveau de départ (réduit pour la démo)
 
 // Seuils de performance (en %)
 export const SUCCESS_THRESHOLD = 100; // Succès complet

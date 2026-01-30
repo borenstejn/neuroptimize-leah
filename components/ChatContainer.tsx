@@ -13,18 +13,27 @@ import { TypingIndicator } from './TypingIndicator';
 import { ChatInput } from './ChatInput';
 import { useExerciseState } from '@/hooks/useExerciseState';
 import { generateFeedback } from '@/lib/feedback';
+import { EXERCISES, type ExerciseType } from '@/types/exercises';
 import type { Message } from '@/types/exercise';
 
 interface ChatContainerProps {
   exercise: ReturnType<typeof useExerciseState>;
+  selectedExercise: ExerciseType;
+  onExerciseSelect: (type: ExerciseType) => void;
 }
 
-export function ChatContainer({ exercise }: ChatContainerProps) {
+export function ChatContainer({
+  exercise,
+  selectedExercise,
+  onExerciseSelect
+}: ChatContainerProps) {
   const [isTyping, setIsTyping] = useState(false);
   const [conversationHistory, setConversationHistory] = useState<
     Array<{ role: 'user' | 'assistant'; content: string }>
   >([]);
   const [isAwaitingResponse, setIsAwaitingResponse] = useState(false);
+
+  const currentExerciseConfig = EXERCISES[selectedExercise];
 
   /**
    * Gestion de l'envoi d'un message libre à Max
@@ -50,7 +59,7 @@ export function ChatContainer({ exercise }: ChatContainerProps) {
       setIsAwaitingResponse(true);
 
       try {
-        // Appeler l'API
+        // Appeler l'API avec le type d'exercice
         const response = await fetch('/api/chat', {
           method: 'POST',
           headers: {
@@ -58,6 +67,7 @@ export function ChatContainer({ exercise }: ChatContainerProps) {
           },
           body: JSON.stringify({
             messages: newHistory,
+            exerciseType: selectedExercise,
           }),
         });
 
@@ -96,7 +106,7 @@ export function ChatContainer({ exercise }: ChatContainerProps) {
         setIsAwaitingResponse(false);
       }
     },
-    [exercise, conversationHistory]
+    [exercise, conversationHistory, selectedExercise]
   );
 
   /**
@@ -106,6 +116,21 @@ export function ChatContainer({ exercise }: ChatContainerProps) {
   const mapButtonToAction = useCallback(
     (buttonLabel: string): (() => void) | null => {
       const normalized = buttonLabel.toLowerCase().trim();
+
+      // Exercise selection actions
+      if (normalized.includes('réseau neural') || normalized.includes('réseau')) {
+        return () => {
+          onExerciseSelect('neural_network');
+          handleSendMessage('Je choisis le Réseau Neural');
+        };
+      }
+
+      if (normalized.includes('mémoire verbale') || normalized.includes('verbal')) {
+        return () => {
+          onExerciseSelect('verbal_memory');
+          handleSendMessage('Je choisis Mémoire Verbale');
+        };
+      }
 
       // Exercise control actions
       if (
@@ -169,7 +194,7 @@ export function ChatContainer({ exercise }: ChatContainerProps) {
         handleSendMessage(buttonLabel);
       };
     },
-    [exercise, handleSendMessage]
+    [exercise, handleSendMessage, onExerciseSelect]
   );
 
   /**
@@ -206,7 +231,7 @@ export function ChatContainer({ exercise }: ChatContainerProps) {
           Max - Remédiation Cognitive
         </h2>
         <p className="text-sm text-gray-500">
-          Exercice : Le Réseau Neural
+          Exercice : {currentExerciseConfig.title} {currentExerciseConfig.icon}
         </p>
       </div>
 

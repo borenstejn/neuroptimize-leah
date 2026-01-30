@@ -1,19 +1,29 @@
 /**
- * Page principale - Orchestre Chat + NeuralNetwork + Controls
- * Neuroptimize POC v5.3 - Ticket #16
+ * Page principale - Orchestre Chat + ExerciseRenderer
+ * Neuroptimize POC v5.3 - Multi-Exercices
  */
 
 'use client';
 
+import { useState } from 'react';
 import { ChatContainer } from '@/components/ChatContainer';
-import { NeuralNetwork } from '@/components/NeuralNetwork';
-import { ExerciseControls } from '@/components/ExerciseControls';
+import { ExerciseRenderer } from '@/components/ExerciseRenderer';
 import { useExerciseState } from '@/hooks/useExerciseState';
+import { EXERCISES, type ExerciseType } from '@/types/exercises';
 
 export default function HomePage() {
-  const exercise = useExerciseState();
+  const [selectedExercise, setSelectedExercise] = useState<ExerciseType>('neural_network');
+  const exercise = useExerciseState(selectedExercise);
 
-  console.log('[PAGE RENDER] phase:', exercise.phase, 'encodingIndex:', exercise.encodingIndex);
+  console.log('[PAGE RENDER] phase:', exercise.phase, 'exerciseType:', selectedExercise);
+
+  const handleExerciseSelect = (type: ExerciseType) => {
+    setSelectedExercise(type);
+    // Réinitialiser l'exercice lors du changement
+    exercise.stopExercise();
+  };
+
+  const currentExerciseConfig = EXERCISES[selectedExercise];
 
   return (
     <main className="min-h-screen p-4 md:p-8">
@@ -28,31 +38,22 @@ export default function HomePage() {
           </p>
         </header>
 
-        {/* Layout 2 colonnes : Chat (gauche) + NeuralNetwork (droite) */}
+        {/* Layout 2 colonnes : Chat (gauche) + Exercise (droite) */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 items-start">
           {/* Colonne Chat avec hauteur fixe et sticky */}
           <div className="flex flex-col h-[calc(100vh-12rem)] lg:sticky lg:top-4">
-            <ChatContainer exercise={exercise} />
+            <ChatContainer
+              exercise={exercise}
+              selectedExercise={selectedExercise}
+              onExerciseSelect={handleExerciseSelect}
+            />
           </div>
 
-          {/* Colonne NeuralNetwork + Controls avec sticky */}
+          {/* Colonne Exercise avec sticky */}
           <div className="flex flex-col items-center justify-start lg:sticky lg:top-4">
-            <NeuralNetwork
-              sequence={exercise.currentSequence}
-              userSequence={exercise.userSequence}
-              phase={exercise.phase}
-              onNeuronClick={exercise.handleNeuronClick}
-              encodingIndex={exercise.encodingIndex}
-            />
-
-            {/* Contrôles */}
-            <ExerciseControls
-              canStop={exercise.canStop}
-              canClear={exercise.canClearSelection}
-              onStop={exercise.stopExercise}
-              onClear={exercise.clearSelection}
-              isSoundMuted={exercise.isSoundMuted}
-              onToggleSound={exercise.toggleSound}
+            <ExerciseRenderer
+              exerciseType={selectedExercise}
+              exercise={exercise}
             />
           </div>
         </div>
@@ -60,10 +61,10 @@ export default function HomePage() {
         {/* Footer */}
         <footer className="mt-12 text-center text-sm text-gray-500">
           <p>
-            POC v5.3 - Exercice "Le Réseau Neural"
+            POC v5.3 - Exercice "{currentExerciseConfig.title}" {currentExerciseConfig.icon}
           </p>
           <p className="mt-1">
-            Mémoire de travail visuo-spatiale
+            {currentExerciseConfig.cognitiveFunction}
           </p>
         </footer>
       </div>

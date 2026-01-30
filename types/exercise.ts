@@ -46,9 +46,9 @@ export type ExerciseState = {
   // Niveau (nombre d'éléments à mémoriser)
   level: number;
 
-  // Séquences
-  currentSequence: Position[];
-  userSequence: Position[];
+  // Séquences (générique pour supporter différents types d'exercices)
+  currentSequence: unknown;
+  userSequence: unknown[];
 
   // Résultats
   currentResult?: TrialResult;

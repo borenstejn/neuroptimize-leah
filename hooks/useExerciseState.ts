@@ -1,10 +1,10 @@
 /**
  * Hook principal pour gérer le state de l'exercice
  * State machine: intro → encoding → retention → recall → feedback
- * Neuroptimize POC v5.3
+ * Neuroptimize POC v5.3 - Multi-Exercices
  */
 
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import type {
   ExerciseState,
   ExercisePhase,
@@ -12,7 +12,10 @@ import type {
   TrialResult,
   Message
 } from '@/types/exercise';
+import type { ExerciseType } from '@/types/exercises';
+import type { Word } from '@/types/verbal-memory';
 import { useSequenceGenerator, isSamePosition } from './useSequenceGenerator';
+import { useWordListGenerator } from './useWordListGenerator';
 import { useSound } from './useSound';
 import {
   INITIAL_LEVEL,
@@ -26,11 +29,23 @@ import {
   FALLBACK_MESSAGES,
 } from '@/lib/constants';
 
-export function useExerciseState() {
+/**
+ * Hook pour générer la séquence selon le type d'exercice
+ */
+function useExerciseSequence(type: ExerciseType, level: number): unknown {
+  const neuralSequence = useSequenceGenerator(level);
+  const verbalSequence = useWordListGenerator(level);
+
+  return useMemo(() => {
+    return type === 'neural_network' ? neuralSequence : verbalSequence;
+  }, [type, neuralSequence, verbalSequence]);
+}
+
+export function useExerciseState(exerciseType: ExerciseType = 'neural_network') {
   // State principal
   const [phase, setPhase] = useState<ExercisePhase>('intro');
   const [level, setLevel] = useState(INITIAL_LEVEL);
-  const [userSequence, setUserSequence] = useState<Position[]>([]);
+  const [userSequence, setUserSequence] = useState<unknown[]>([]);
   const [currentResult, setCurrentResult] = useState<TrialResult | undefined>();
   const [consecutiveSuccesses, setConsecutiveSuccesses] = useState(0);
   const [messages, setMessages] = useState<Message[]>([
@@ -43,8 +58,8 @@ export function useExerciseState() {
   const [isLoading, setIsLoading] = useState(false);
   const [encodingIndex, setEncodingIndex] = useState(0);
 
-  // Génération de la séquence
-  const currentSequence = useSequenceGenerator(level);
+  // Génération de la séquence selon le type d'exercice
+  const currentSequence = useExerciseSequence(exerciseType, level);
 
   // Son "bip" pour activation neurone (Ticket #21)
   const sound = useSound(800, 50, 0.3);
@@ -65,6 +80,9 @@ export function useExerciseState() {
    * Démarre l'exercice (transition intro → encoding)
    */
   const startExercise = useCallback(() => {
+    // Caster la séquence en tableau pour accéder à length
+    const sequenceArray = currentSequence as unknown[];
+
     setPhase('encoding');
     setUserSequence([]);
     setCurrentResult(undefined);
@@ -79,10 +97,10 @@ export function useExerciseState() {
     const encodingTimers: NodeJS.Timeout[] = [];
 
     const animateEncoding = () => {
-      if (currentIndex < currentSequence.length) {
-        console.log('[ENCODING] Index:', currentIndex + 1, 'Position:', currentSequence[currentIndex]);
+      if (currentIndex < sequenceArray.length) {
+        console.log('[ENCODING] Index:', currentIndex + 1, 'Item:', sequenceArray[currentIndex]);
         setEncodingIndex(currentIndex + 1);
-        sound.play(); // Jouer le son "bip" (Ticket #21)
+        sound.play(); // Jouer le son "bip"
         currentIndex++;
         const timer = setTimeout(animateEncoding, ENCODING_DURATION);
         encodingTimers.push(timer);
@@ -92,8 +110,8 @@ export function useExerciseState() {
     // Démarrer l'animation
     animateEncoding();
 
-    // Durée totale de l'encoding (500ms par neurone)
-    const totalEncodingDuration = currentSequence.length * ENCODING_DURATION;
+    // Durée totale de l'encoding (500ms par élément)
+    const totalEncodingDuration = sequenceArray.length * ENCODING_DURATION;
 
     // Transition vers retention après l'encoding
     encodingTimerRef.current = setTimeout(() => {
@@ -115,98 +133,156 @@ export function useExerciseState() {
         ]);
       }, RETENTION_DELAY);
     }, totalEncodingDuration);
-  }, [currentSequence.length, sound]);
+  }, [currentSequence, sound]);
 
   /**
-   * Gestion du clic sur un neurone
+   * Fonction de comparaison générique selon le type d'exercice
+   */
+  const isItemEqual = useCallback(
+    (item1: unknown, item2: unknown): boolean => {
+      if (exerciseType === 'neural_network') {
+        return isSamePosition(item1 as Position, item2 as Position);
+      } else if (exerciseType === 'verbal_memory') {
+        return (item1 as Word).id === (item2 as Word).id;
+      }
+      return false;
+    },
+    [exerciseType]
+  );
+
+  /**
+   * Fonction générique de calcul du score et feedback
+   */
+  const calculateScoreAndFeedback = useCallback(
+    (newUserSequence: unknown[]) => {
+      const sequenceArray = currentSequence as unknown[];
+
+      // Calculer le score
+      const correctCount = newUserSequence.filter((userItem, index) =>
+        isItemEqual(userItem, sequenceArray[index])
+      ).length;
+
+      const score = Math.round((correctCount / sequenceArray.length) * 100);
+      const isSuccess = score === SUCCESS_THRESHOLD;
+      const isPartial = score >= PARTIAL_THRESHOLD && score < SUCCESS_THRESHOLD;
+      const isFailed = score < PARTIAL_THRESHOLD;
+
+      const result: TrialResult = {
+        score,
+        correctCount,
+        totalCount: sequenceArray.length,
+        isSuccess,
+        isPartial,
+        isFailed,
+      };
+
+      setCurrentResult(result);
+
+      // Adapter le niveau
+      let newLevel = level;
+      let newConsecutiveSuccesses = consecutiveSuccesses;
+
+      if (isSuccess) {
+        newConsecutiveSuccesses++;
+        if (newConsecutiveSuccesses >= SUCCESSES_FOR_LEVEL_UP) {
+          newLevel = Math.min(level + 1, MAX_LEVEL);
+          newConsecutiveSuccesses = 0;
+        }
+      } else if (isFailed) {
+        newLevel = Math.max(level - 1, MIN_LEVEL);
+        newConsecutiveSuccesses = 0;
+      } else {
+        // Partiel: pas de changement de niveau mais reset des succès consécutifs
+        newConsecutiveSuccesses = 0;
+      }
+
+      setLevel(newLevel);
+      setConsecutiveSuccesses(newConsecutiveSuccesses);
+
+      // Transition vers feedback
+      setPhase('feedback');
+
+      // Message de feedback
+      const itemName = exerciseType === 'neural_network' ? 'neurones' : 'mots';
+      let feedbackMessage = '';
+      if (isSuccess) {
+        feedbackMessage = `Excellent ! Tu as reproduit la séquence sans erreur (${correctCount}/${sequenceArray.length} ${itemName}).`;
+      } else if (isPartial) {
+        feedbackMessage = `Bien. Tu as mémorisé ${correctCount} sur ${sequenceArray.length} ${itemName}.`;
+      } else {
+        feedbackMessage = `Tu as mémorisé ${correctCount} sur ${sequenceArray.length} ${itemName}. C'est un point de départ normal.`;
+      }
+
+      if (newLevel > level) {
+        feedbackMessage += ` Niveau suivant : ${newLevel}.`;
+      } else if (newLevel < level) {
+        feedbackMessage += ` On ajuste au niveau ${newLevel}.`;
+      }
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: 'assistant',
+          content: feedbackMessage,
+          buttons: ['Continuer', 'Arrêter'],
+        },
+      ]);
+    },
+    [currentSequence, level, consecutiveSuccesses, exerciseType, isItemEqual]
+  );
+
+  /**
+   * Gestion du clic sur un neurone (exercice neural_network)
    */
   const handleNeuronClick = useCallback(
     (position: Position) => {
       if (phase !== 'recall') return;
+      if (exerciseType !== 'neural_network') return;
+
+      const sequenceArray = currentSequence as Position[];
 
       // Ne pas permettre de cliquer plus que la longueur de la séquence
-      if (userSequence.length >= currentSequence.length) return;
+      if (userSequence.length >= sequenceArray.length) return;
 
-      // Jouer le son lors du clic (Ticket #21)
+      // Jouer le son lors du clic
       sound.play();
 
       const newUserSequence = [...userSequence, position];
       setUserSequence(newUserSequence);
 
       // Vérifier si la séquence est complète
-      if (newUserSequence.length === currentSequence.length) {
-        // Calculer le score
-        const correctCount = newUserSequence.filter((userPos, index) =>
-          isSamePosition(userPos, currentSequence[index])
-        ).length;
-
-        const score = Math.round((correctCount / currentSequence.length) * 100);
-        const isSuccess = score === SUCCESS_THRESHOLD;
-        const isPartial = score >= PARTIAL_THRESHOLD && score < SUCCESS_THRESHOLD;
-        const isFailed = score < PARTIAL_THRESHOLD;
-
-        const result: TrialResult = {
-          score,
-          correctCount,
-          totalCount: currentSequence.length,
-          isSuccess,
-          isPartial,
-          isFailed,
-        };
-
-        setCurrentResult(result);
-
-        // Adapter le niveau
-        let newLevel = level;
-        let newConsecutiveSuccesses = consecutiveSuccesses;
-
-        if (isSuccess) {
-          newConsecutiveSuccesses++;
-          if (newConsecutiveSuccesses >= SUCCESSES_FOR_LEVEL_UP) {
-            newLevel = Math.min(level + 1, MAX_LEVEL);
-            newConsecutiveSuccesses = 0;
-          }
-        } else if (isFailed) {
-          newLevel = Math.max(level - 1, MIN_LEVEL);
-          newConsecutiveSuccesses = 0;
-        } else {
-          // Partiel: pas de changement de niveau mais reset des succès consécutifs
-          newConsecutiveSuccesses = 0;
-        }
-
-        setLevel(newLevel);
-        setConsecutiveSuccesses(newConsecutiveSuccesses);
-
-        // Transition vers feedback
-        setPhase('feedback');
-
-        // Message de feedback (simplifié - sera enrichi dans Ticket #4)
-        let feedbackMessage = '';
-        if (isSuccess) {
-          feedbackMessage = `Excellent ! Tu as reproduit la séquence sans erreur (${correctCount}/${currentSequence.length}).`;
-        } else if (isPartial) {
-          feedbackMessage = `Bien. Tu as mémorisé ${correctCount} sur ${currentSequence.length} éléments.`;
-        } else {
-          feedbackMessage = `Tu as mémorisé ${correctCount} sur ${currentSequence.length}. C'est un point de départ normal.`;
-        }
-
-        if (newLevel > level) {
-          feedbackMessage += ` Niveau suivant : ${newLevel}.`;
-        } else if (newLevel < level) {
-          feedbackMessage += ` On ajuste au niveau ${newLevel}.`;
-        }
-
-        setMessages((prev) => [
-          ...prev,
-          {
-            role: 'assistant',
-            content: feedbackMessage,
-            buttons: ['Continuer', 'Arrêter'],
-          },
-        ]);
+      if (newUserSequence.length === sequenceArray.length) {
+        calculateScoreAndFeedback(newUserSequence);
       }
     },
-    [phase, userSequence, currentSequence, level, consecutiveSuccesses]
+    [phase, exerciseType, userSequence, currentSequence, sound, calculateScoreAndFeedback]
+  );
+
+  /**
+   * Gestion du clic sur un mot (exercice verbal_memory)
+   */
+  const handleWordClick = useCallback(
+    (word: Word) => {
+      if (phase !== 'recall') return;
+      if (exerciseType !== 'verbal_memory') return;
+
+      const sequenceArray = currentSequence as Word[];
+
+      // Ne pas permettre de cliquer plus que la longueur de la séquence
+      if (userSequence.length >= sequenceArray.length) return;
+
+      // Jouer le son lors du clic
+      sound.play();
+
+      const newUserSequence = [...userSequence, word];
+      setUserSequence(newUserSequence);
+
+      // Vérifier si la séquence est complète
+      if (newUserSequence.length === sequenceArray.length) {
+        calculateScoreAndFeedback(newUserSequence);
+      }
+    },
+    [phase, exerciseType, userSequence, currentSequence, sound, calculateScoreAndFeedback]
   );
 
   /**
@@ -274,10 +350,12 @@ export function useExerciseState() {
     // État
     ...state,
     encodingIndex, // Index du neurone en cours d'activation pendant encoding
+    exerciseType, // Type d'exercice actuel
 
     // Actions
     startExercise,
     handleNeuronClick,
+    handleWordClick,
     stopExercise,
     clearSelection,
     continueExercise,
