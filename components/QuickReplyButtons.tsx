@@ -40,15 +40,14 @@ export function QuickReplyButtons({
             onClick={() => handleClick(option)}
             disabled={isDisabled}
             className={`
-              px-4 py-2 rounded-lg text-sm font-medium
+              px-4 py-2 rounded-full text-sm font-medium border
               transition-all duration-200
-              focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2
-              ${
-                isClicked
-                  ? 'bg-blue-600 text-white ring-2 ring-blue-400'
-                  : isDisabled
-                  ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                  : 'bg-blue-100 hover:bg-blue-200 text-blue-700 cursor-pointer hover:scale-105 active:scale-95'
+              focus:outline-none focus:ring-2 focus:ring-synapse-400 focus:ring-offset-2
+              ${isClicked
+                ? 'bg-synapse-600 text-white border-synapse-600 shadow-lg scale-95'
+                : isDisabled
+                  ? 'bg-neuro-100 text-deep-900/40 border-transparent cursor-not-allowed'
+                  : 'bg-white/50 backdrop-blur-sm border-synapse-200 text-synapse-700 hover:bg-synapse-500 hover:text-white hover:border-synapse-500 hover:shadow-md hover:shadow-synapse-500/20 active:scale-95'
               }
             `}
             aria-label={`Réponse rapide: ${option}`}

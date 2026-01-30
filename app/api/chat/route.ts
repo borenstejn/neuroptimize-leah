@@ -136,31 +136,37 @@ Message SANS boutons :
  * Génère le prompt système adapté au type d'exercice
  */
 function getMaxSystemPrompt(exerciseType: ExerciseType = 'neural_network'): string {
-  let contextSection = '';
+  const contextSection = `
+# EXERCICES DISPONIBLES
 
-  if (exerciseType === 'neural_network') {
-    contextSection = `
-# CONTEXTE ACTUEL
-Tu guides actuellement un utilisateur à travers "Le Réseau Neural" 🧠, un exercice qui entraîne la mémoire de travail visuo-spatiale via une grille 4x4 de neurones.
+Tu proposes DEUX exercices de remédiation cognitive :
 
-L'utilisateur observe une séquence de neurones qui s'activent, puis doit la reproduire. La difficulté s'adapte automatiquement selon ses performances.
+🧠 **Le Réseau Neural** - Mémoire de travail visuo-spatiale
+   L'utilisateur observe une séquence de neurones qui s'activent sur une grille 4x4, puis doit la reproduire.
 
-Si l'utilisateur souhaite explorer d'autres exercices, tu peux proposer :
-<buttons>
-Mémoire Verbale
-</buttons>`;
-  } else if (exerciseType === 'verbal_memory') {
-    contextSection = `
-# CONTEXTE ACTUEL
-Tu guides actuellement un utilisateur à travers "Mémoire Verbale" 📝, un exercice qui entraîne la mémoire de travail verbale.
+📝 **Mémoire Verbale** - Mémoire de travail verbale
+   L'utilisateur observe une liste de mots qui s'affichent un par un, puis doit les rappeler dans l'ordre.
 
-L'utilisateur observe une liste de mots qui s'affichent un par un, puis doit les rappeler dans l'ordre. La difficulté s'adapte automatiquement selon ses performances.
+# RÈGLE IMPORTANTE : TOUJOURS PROPOSER LE CHOIX
 
-Si l'utilisateur souhaite explorer d'autres exercices, tu peux proposer :
+**AVANT de proposer "Commencer l'exercice", tu DOIS d'abord demander quel exercice l'utilisateur veut faire.**
+
+Quand l'utilisateur semble prêt à s'entraîner (dit "je suis prêt", "on commence", "allons-y", etc.), propose TOUJOURS les deux exercices :
+
 <buttons>
 Le Réseau Neural
-</buttons>`;
-  }
+Mémoire Verbale
+</buttons>
+
+**APRÈS que l'utilisateur ait choisi** (cliqué sur un bouton ou dit explicitement son choix), ALORS tu peux proposer :
+
+<buttons>
+Commencer l'exercice
+</buttons>
+
+# EXERCICE ACTUELLEMENT SÉLECTIONNÉ : ${exerciseType === 'neural_network' ? 'Le Réseau Neural 🧠' : 'Mémoire Verbale 📝'}
+
+Si l'utilisateur veut changer d'exercice en cours de route, propose l'autre exercice.`;
 
   return MAX_BASE_PROMPT + contextSection;
 }
@@ -205,7 +211,7 @@ function parseButtonsFromResponse(rawMessage: string): ParsedResponse {
 
 export async function POST(request: NextRequest) {
   try {
-    const { messages, exerciseType = 'neural_network' } = await request.json();
+    const { messages, exerciseType = 'neural_network', stream = true } = await request.json();
 
     if (!messages || !Array.isArray(messages)) {
       return NextResponse.json(
@@ -221,7 +227,75 @@ export async function POST(request: NextRequest) {
       ...messages,
     ];
 
-    // Appeler Requesty
+    // Si streaming activé
+    if (stream) {
+      const response = await fetch(`${REQUESTY_API_URL}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${REQUESTY_API_KEY}`,
+        },
+        body: JSON.stringify({
+          model: MODEL,
+          messages: apiMessages,
+          temperature: 0.8,
+          max_tokens: 1000,
+          stream: true,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.text();
+        console.error('Requesty API error:', errorData);
+        return NextResponse.json(
+          { error: 'Failed to get response from AI' },
+          { status: response.status }
+        );
+      }
+
+      // Créer un TransformStream pour le SSE
+      const encoder = new TextEncoder();
+      const decoder = new TextDecoder();
+
+      const transformStream = new TransformStream({
+        async transform(chunk, controller) {
+          const text = decoder.decode(chunk);
+          const lines = text.split('\n');
+
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const data = line.slice(6);
+              if (data === '[DONE]') {
+                controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+                return;
+              }
+              try {
+                const parsed = JSON.parse(data);
+                const content = parsed.choices?.[0]?.delta?.content;
+                if (content) {
+                  controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content })}\n\n`));
+                }
+              } catch {
+                // Ignorer les lignes non-JSON
+              }
+            }
+          }
+        },
+      });
+
+      // Pipe la réponse à travers le transform
+      const readableStream = response.body?.pipeThrough(transformStream);
+
+      return new Response(readableStream, {
+        headers: {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          Connection: 'keep-alive',
+        },
+      });
+    }
+
+    // Mode non-streaming (fallback)
     const response = await fetch(`${REQUESTY_API_URL}/chat/completions`, {
       method: 'POST',
       headers: {

@@ -46,26 +46,26 @@ export function ChatInput({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-2">
-      <div className="flex gap-2">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-2 relative">
+      <div className="flex gap-3 items-end">
         <textarea
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
           disabled={disabled || isSending}
-          rows={2}
-          className="flex-1 px-4 py-3 text-sm border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed transition-all"
+          rows={1}
+          className="flex-1 px-4 py-3 text-sm bg-white/50 border border-white/60 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-synapse-400 focus:border-transparent focus:bg-white/80 placeholder:text-deep-900/40 text-deep-900 disabled:opacity-50 transition-all shadow-sm min-h-[48px]"
         />
         <button
           type="submit"
           disabled={!input.trim() || disabled || isSending}
-          className="px-6 py-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white font-medium rounded-lg hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 hover:scale-105 active:scale-95"
+          className="px-4 py-3 bg-gradient-to-r from-synapse-500 to-electric-500 text-white font-medium rounded-xl shadow-lg hover:shadow-synapse-500/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 hover:scale-105 active:scale-95 flex items-center justify-center min-h-[48px] min-w-[48px]"
         >
           {isSending ? (
             <span className="flex items-center gap-2">
               <svg
-                className="animate-spin h-4 w-4"
+                className="animate-spin h-5 w-5"
                 xmlns="http://www.w3.org/2000/svg"
                 fill="none"
                 viewBox="0 0 24 24"
@@ -88,27 +88,17 @@ export function ChatInput({
           ) : (
             <svg
               xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 20 20"
+              viewBox="0 0 24 24"
               fill="currentColor"
               className="w-5 h-5"
             >
-              <path d="M3.105 2.289a.75.75 0 00-.826.95l1.414 4.925A1.5 1.5 0 005.135 9.25h6.115a.75.75 0 010 1.5H5.135a1.5 1.5 0 00-1.442 1.086l-1.414 4.926a.75.75 0 00.826.95 28.896 28.896 0 0015.293-7.154.75.75 0 000-1.115A28.897 28.897 0 003.105 2.289z" />
+              <path d="M3.478 2.405a.75.75 0 00-.926.94l2.432 7.905H13.5a.75.75 0 010 1.5H4.984l-2.432 7.905a.75.75 0 00.926.94 60.519 60.519 0 0018.445-8.986.75.75 0 000-1.218A60.517 60.517 0 003.478 2.405z" />
             </svg>
           )}
         </button>
       </div>
-      <p className="text-xs text-gray-500 px-1">
-        <kbd className="px-1.5 py-0.5 text-xs bg-gray-100 border border-gray-300 rounded">
-          Enter
-        </kbd>{' '}
-        pour envoyer •{' '}
-        <kbd className="px-1.5 py-0.5 text-xs bg-gray-100 border border-gray-300 rounded">
-          {typeof navigator !== 'undefined' && navigator.platform.includes('Mac')
-            ? '⌘'
-            : 'Ctrl'}
-          +Enter
-        </kbd>{' '}
-        pour nouvelle ligne
+      <p className="text-[10px] text-deep-900/40 px-2 text-right">
+        <span className="font-medium">Entrée</span> pour envoyer
       </p>
     </form>
   );

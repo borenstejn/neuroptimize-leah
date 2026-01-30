@@ -38,11 +38,12 @@ function getRandomWords(count: number): Word[] {
 
 /**
  * Génère une séquence de mots aléatoires selon le niveau
+ * trialCount force une nouvelle séquence à chaque essai
  */
-export function useWordListGenerator(level: number): Word[] {
+export function useWordListGenerator(level: number, trialCount: number = 0): Word[] {
   return useMemo(() => {
     return getRandomWords(level);
-  }, [level]);
+  }, [level, trialCount]);
 }
 
 /**

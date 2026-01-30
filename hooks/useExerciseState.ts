@@ -31,10 +31,11 @@ import {
 
 /**
  * Hook pour générer la séquence selon le type d'exercice
+ * trialCount force une nouvelle séquence à chaque essai
  */
-function useExerciseSequence(type: ExerciseType, level: number): unknown {
-  const neuralSequence = useSequenceGenerator(level);
-  const verbalSequence = useWordListGenerator(level);
+function useExerciseSequence(type: ExerciseType, level: number, trialCount: number): unknown {
+  const neuralSequence = useSequenceGenerator(level, trialCount);
+  const verbalSequence = useWordListGenerator(level, trialCount);
 
   return useMemo(() => {
     return type === 'neural_network' ? neuralSequence : verbalSequence;
@@ -48,6 +49,8 @@ export function useExerciseState(exerciseType: ExerciseType = 'neural_network') 
   const [userSequence, setUserSequence] = useState<unknown[]>([]);
   const [currentResult, setCurrentResult] = useState<TrialResult | undefined>();
   const [consecutiveSuccesses, setConsecutiveSuccesses] = useState(0);
+  const [trialCount, setTrialCount] = useState(0); // Compteur d'essais pour forcer nouvelle séquence
+  const [pendingStart, setPendingStart] = useState(false); // Flag pour démarrer après nouvelle séquence
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'assistant',
@@ -58,8 +61,8 @@ export function useExerciseState(exerciseType: ExerciseType = 'neural_network') 
   const [isLoading, setIsLoading] = useState(false);
   const [encodingIndex, setEncodingIndex] = useState(0);
 
-  // Génération de la séquence selon le type d'exercice
-  const currentSequence = useExerciseSequence(exerciseType, level);
+  // Génération de la séquence selon le type d'exercice (trialCount force nouvelle séquence)
+  const currentSequence = useExerciseSequence(exerciseType, level, trialCount);
 
   // Son "bip" pour activation neurone (Ticket #21)
   const sound = useSound(800, 50, 0.3);
@@ -75,6 +78,59 @@ export function useExerciseState(exerciseType: ExerciseType = 'neural_network') 
       if (retentionTimerRef.current) clearTimeout(retentionTimerRef.current);
     };
   }, []);
+
+  // Démarrer l'exercice quand pendingStart est true (après génération nouvelle séquence)
+  useEffect(() => {
+    if (pendingStart && currentSequence) {
+      setPendingStart(false);
+      // Lancer l'exercice avec la nouvelle séquence
+      const sequenceArray = currentSequence as unknown[];
+
+      setPhase('encoding');
+      setUserSequence([]);
+      setCurrentResult(undefined);
+      setEncodingIndex(0);
+      setMessages((prev) => [
+        ...prev,
+        { role: 'assistant', content: FALLBACK_MESSAGES.encoding },
+      ]);
+
+      // Animation progressive de l'encoding avec son
+      let currentIndex = 0;
+      const encodingTimers: NodeJS.Timeout[] = [];
+
+      const animateEncoding = () => {
+        if (currentIndex < sequenceArray.length) {
+          setEncodingIndex(currentIndex + 1);
+          sound.play();
+          currentIndex++;
+          const timer = setTimeout(animateEncoding, ENCODING_DURATION);
+          encodingTimers.push(timer);
+        }
+      };
+
+      animateEncoding();
+
+      const totalEncodingDuration = sequenceArray.length * ENCODING_DURATION;
+
+      encodingTimerRef.current = setTimeout(() => {
+        encodingTimers.forEach(clearTimeout);
+        setPhase('retention');
+        setMessages((prev) => [
+          ...prev,
+          { role: 'assistant', content: FALLBACK_MESSAGES.retention },
+        ]);
+
+        retentionTimerRef.current = setTimeout(() => {
+          setPhase('recall');
+          setMessages((prev) => [
+            ...prev,
+            { role: 'assistant', content: FALLBACK_MESSAGES.recall },
+          ]);
+        }, RETENTION_DELAY);
+      }, totalEncodingDuration);
+    }
+  }, [pendingStart, currentSequence, sound]);
 
   /**
    * Démarre l'exercice (transition intro → encoding)
@@ -317,10 +373,12 @@ export function useExerciseState(exerciseType: ExerciseType = 'neural_network') 
 
   /**
    * Continue vers le prochain essai (depuis feedback)
+   * Incrémente trialCount pour forcer une nouvelle séquence
    */
   const continueExercise = useCallback(() => {
-    startExercise();
-  }, [startExercise]);
+    setTrialCount((prev) => prev + 1);
+    setPendingStart(true);
+  }, []);
 
   // État complet pour l'UI
   /**

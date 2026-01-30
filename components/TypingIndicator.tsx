@@ -22,11 +22,11 @@ export function TypingIndicator() {
       </div>
 
       {/* Bulle avec dots */}
-      <div className="bg-white rounded-2xl rounded-tl-none px-4 py-3 shadow-md">
+      <div className="bg-white/60 backdrop-blur-md border border-white/50 rounded-2xl rounded-tl-none px-4 py-3 shadow-sm">
         <div className="flex gap-1">
-          <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-          <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-          <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+          <div className="w-2 h-2 bg-deep-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+          <div className="w-2 h-2 bg-deep-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+          <div className="w-2 h-2 bg-deep-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
         </div>
       </div>
     </div>

@@ -84,9 +84,9 @@ export function NeuralNetwork({
   }
 
   return (
-    <div className="flex flex-col items-center justify-center p-4">
-      <div className="inline-block rounded-lg bg-white/50 backdrop-blur-sm p-6 shadow-xl">
-        <div className="grid grid-cols-4 gap-4">
+    <div className="flex flex-col items-center justify-center p-4 w-full">
+      <div className="inline-block rounded-2xl p-6">
+        <div className="grid grid-cols-4 gap-4 md:gap-6">
           {grid.map((row, rowIndex) =>
             row.map((position, colIndex) => (
               <Neuron

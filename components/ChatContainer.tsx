@@ -6,15 +6,39 @@
 
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { MessageList } from './MessageList';
 import { QuickReplyButtons } from './QuickReplyButtons';
 import { TypingIndicator } from './TypingIndicator';
 import { ChatInput } from './ChatInput';
 import { useExerciseState } from '@/hooks/useExerciseState';
-import { generateFeedback } from '@/lib/feedback';
 import { EXERCISES, type ExerciseType } from '@/types/exercises';
 import type { Message } from '@/types/exercise';
+
+/**
+ * Parse les boutons d'une réponse complète
+ */
+function parseButtonsFromText(text: string): { message: string; buttons?: string[] } {
+  const buttonRegex = /<buttons>\s*([\s\S]*?)\s*<\/buttons>/i;
+  const match = text.match(buttonRegex);
+
+  if (!match) {
+    return { message: text };
+  }
+
+  const buttonsText = match[1];
+  const buttons = buttonsText
+    .split('\n')
+    .map((btn) => btn.trim())
+    .filter((btn) => btn.length > 0 && !btn.startsWith('-') && !btn.match(/^\d+\./));
+
+  const cleanMessage = text.replace(buttonRegex, '').trim();
+
+  return {
+    message: cleanMessage,
+    buttons: buttons.length > 0 ? buttons : undefined,
+  };
+}
 
 interface ChatContainerProps {
   exercise: ReturnType<typeof useExerciseState>;
@@ -27,16 +51,19 @@ export function ChatContainer({
   selectedExercise,
   onExerciseSelect
 }: ChatContainerProps) {
-  const [isTyping, setIsTyping] = useState(false);
+  const [isTyping, setIsTyping] = useState(false); // Pour les transitions d'exercice
+  const [isStreaming, setIsStreaming] = useState(false); // Pour le streaming des messages
+  const [streamingContent, setStreamingContent] = useState('');
   const [conversationHistory, setConversationHistory] = useState<
     Array<{ role: 'user' | 'assistant'; content: string }>
   >([]);
   const [isAwaitingResponse, setIsAwaitingResponse] = useState(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const currentExerciseConfig = EXERCISES[selectedExercise];
 
   /**
-   * Gestion de l'envoi d'un message libre à Max
+   * Gestion de l'envoi d'un message avec streaming
    */
   const handleSendMessage = useCallback(
     async (userMessage: string) => {
@@ -54,12 +81,15 @@ export function ChatContainer({
       ];
       setConversationHistory(newHistory);
 
-      // Afficher le typing indicator
-      setIsTyping(true);
+      // Préparer le streaming
+      setIsStreaming(true);
+      setStreamingContent('');
       setIsAwaitingResponse(true);
 
+      // Créer un AbortController pour pouvoir annuler
+      abortControllerRef.current = new AbortController();
+
       try {
-        // Appeler l'API avec le type d'exercice
         const response = await fetch('/api/chat', {
           method: 'POST',
           headers: {
@@ -68,42 +98,83 @@ export function ChatContainer({
           body: JSON.stringify({
             messages: newHistory,
             exerciseType: selectedExercise,
+            stream: true,
           }),
+          signal: abortControllerRef.current.signal,
         });
 
         if (!response.ok) {
           throw new Error('Failed to get response');
         }
 
-        const data = await response.json();
-        const assistantMessage = data.message;
-        const buttons = data.buttons; // Extraire les boutons de l'API
+        const reader = response.body?.getReader();
+        const decoder = new TextDecoder();
+        let fullContent = '';
 
-        // Ajouter la réponse de Max avec boutons
+        if (reader) {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            const chunk = decoder.decode(value, { stream: true });
+            const lines = chunk.split('\n');
+
+            for (const line of lines) {
+              if (line.startsWith('data: ')) {
+                const data = line.slice(6);
+                if (data === '[DONE]') {
+                  continue;
+                }
+                try {
+                  const parsed = JSON.parse(data);
+                  if (parsed.content) {
+                    fullContent += parsed.content;
+                    setStreamingContent(fullContent);
+                  }
+                } catch {
+                  // Ignorer les erreurs de parsing
+                }
+              }
+            }
+          }
+        }
+
+        // Streaming terminé - parser les boutons et finaliser
+        const { message: cleanMessage, buttons } = parseButtonsFromText(fullContent);
+
+        // Remplacer le contenu streaming par le message final avec boutons
+        setIsStreaming(false);
+        setStreamingContent('');
+
         const assistantMsg: Message = {
           role: 'assistant',
-          content: assistantMessage,
-          buttons: buttons, // Attacher les boutons au message
+          content: cleanMessage,
+          buttons: buttons,
         };
         exercise.addMessage(assistantMsg);
 
         // Mettre à jour l'historique
         setConversationHistory([
           ...newHistory,
-          { role: 'assistant', content: assistantMessage },
+          { role: 'assistant', content: cleanMessage },
         ]);
       } catch (error) {
+        if ((error as Error).name === 'AbortError') {
+          console.log('Request aborted');
+          return;
+        }
         console.error('Error sending message:', error);
-        // Message d'erreur
+        setIsStreaming(false);
+        setStreamingContent('');
         const errorMsg: Message = {
           role: 'assistant',
-          content:
-            "Désolé, j'ai rencontré un problème technique. Peux-tu réessayer ?",
+          content: "Désolé, j'ai rencontré un problème technique. Peux-tu réessayer ?",
         };
         exercise.addMessage(errorMsg);
       } finally {
-        setIsTyping(false);
+        setIsStreaming(false);
         setIsAwaitingResponse(false);
+        abortControllerRef.current = null;
       }
     },
     [exercise, conversationHistory, selectedExercise]
@@ -224,26 +295,43 @@ export function ChatContainer({
   const quickReplyButtons = getQuickReplyButtons();
 
   return (
-    <div className="flex flex-col h-full bg-white/80 backdrop-blur-sm rounded-lg shadow-xl">
-      {/* Header */}
-      <div className="flex-shrink-0 px-6 py-4 border-b border-gray-200">
-        <h2 className="text-xl font-semibold text-gray-800">
+    <div className="flex flex-col h-full">
+      {/* Header Glass */}
+      <div className="flex-shrink-0 px-6 py-4 border-b border-white/30 bg-white/30 backdrop-blur-md">
+        <h2 className="text-xl font-display font-semibold text-deep-900">
           Max - Remédiation Cognitive
         </h2>
-        <p className="text-sm text-gray-500">
+        <p className="text-sm text-deep-800/70">
           Exercice : {currentExerciseConfig.title} {currentExerciseConfig.icon}
         </p>
       </div>
 
       {/* Messages - Zone scrollable */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto scrollbar-thin p-4">
         <MessageList messages={exercise.messages} />
-        {isTyping && <TypingIndicator />}
+
+        {/* Message en cours de streaming */}
+        {isStreaming && streamingContent && (
+          <div className="flex items-start gap-3 mb-4">
+            <div className="w-10 h-10 rounded-full bg-synapse-500 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+              M
+            </div>
+            <div className="flex-1 bg-white/60 backdrop-blur-sm rounded-2xl rounded-tl-md px-4 py-3 shadow-sm">
+              <p className="text-deep-900 whitespace-pre-wrap leading-relaxed">
+                {streamingContent.replace(/<buttons>[\s\S]*?<\/buttons>/gi, '')}
+                <span className="inline-block w-2 h-4 bg-synapse-500 ml-1 animate-pulse rounded-sm align-middle" />
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Typing indicator pour transitions ou début de streaming */}
+        {(isTyping || (isStreaming && !streamingContent)) && <TypingIndicator />}
       </div>
 
       {/* Quick Reply Buttons */}
-      {quickReplyButtons && quickReplyButtons.length > 0 && !isTyping && (
-        <div className="flex-shrink-0 px-6 py-4 border-t border-gray-200">
+      {quickReplyButtons && quickReplyButtons.length > 0 && !isStreaming && !isTyping && (
+        <div className="flex-shrink-0 px-6 py-4 border-t border-white/30 bg-white/20">
           <QuickReplyButtons
             options={quickReplyButtons}
             onSelect={handleQuickReply}
@@ -252,8 +340,8 @@ export function ChatContainer({
         </div>
       )}
 
-      {/* Chat Input - Toujours visible pour converser avec Max */}
-      <div className="flex-shrink-0 px-6 py-4 border-t border-gray-200 bg-gray-50">
+      {/* Chat Input */}
+      <div className="flex-shrink-0 px-6 py-4 border-t border-white/30 bg-white/40 backdrop-blur-md">
         <ChatInput
           onSendMessage={handleSendMessage}
           disabled={isAwaitingResponse}
@@ -263,7 +351,7 @@ export function ChatContainer({
 
       {/* Status bar (dev only) */}
       {process.env.NODE_ENV === 'development' && (
-        <div className="flex-shrink-0 px-6 py-2 bg-gray-50 border-t border-gray-200 text-xs text-gray-500">
+        <div className="flex-shrink-0 px-6 py-1 bg-deep-900/5 text-xs text-deep-800/50">
           Phase: {exercise.phase} | Level: {exercise.level} | Score:{' '}
           {exercise.currentResult?.score ?? '-'}%
         </div>

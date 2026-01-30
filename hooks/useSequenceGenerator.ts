@@ -12,8 +12,9 @@ import { GRID_SIZE } from '@/lib/constants';
  * - Pas de doublons consécutifs
  * - Positions dans la grille 4x4 (0-3)
  * - Longueur = level
+ * - trialCount force une nouvelle séquence à chaque essai
  */
-export function useSequenceGenerator(level: number): Position[] {
+export function useSequenceGenerator(level: number, trialCount: number = 0): Position[] {
   return useMemo(() => {
     const sequence: Position[] = [];
     let lastPos: Position | null = null;
@@ -41,7 +42,7 @@ export function useSequenceGenerator(level: number): Position[] {
     }
 
     return sequence;
-  }, [level]);
+  }, [level, trialCount]);
 }
 
 /**

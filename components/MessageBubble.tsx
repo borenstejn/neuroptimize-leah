@@ -18,9 +18,8 @@ export function MessageBubble({ message }: MessageBubbleProps) {
 
   return (
     <div
-      className={`flex gap-3 mb-4 animate-fade-in ${
-        isAssistant ? 'justify-start' : 'justify-end'
-      }`}
+      className={`flex gap-3 mb-4 animate-fade-in ${isAssistant ? 'justify-start' : 'justify-end'
+        }`}
     >
       {/* Avatar pour messages assistant */}
       {isAssistant && (
@@ -37,11 +36,10 @@ export function MessageBubble({ message }: MessageBubbleProps) {
 
       {/* Bulle de message */}
       <div
-        className={`max-w-[80%] rounded-2xl px-4 py-3 shadow-md ${
-          isAssistant
-            ? 'bg-white text-gray-800 rounded-tl-none'
-            : 'bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-tr-none'
-        }`}
+        className={`max-w-[85%] rounded-2xl px-5 py-3.5 shadow-sm border ${isAssistant
+            ? 'bg-white/60 backdrop-blur-md border-white/50 text-deep-900 rounded-tl-sm'
+            : 'bg-gradient-to-br from-synapse-500 to-deep-800 border-transparent text-white rounded-tr-sm shadow-md'
+          }`}
       >
         <div className="text-sm md:text-base leading-relaxed prose prose-sm max-w-none">
           <ReactMarkdown

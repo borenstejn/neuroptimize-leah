@@ -29,7 +29,7 @@ export function ExerciseControls({
       {canStop && (
         <button
           onClick={onStop}
-          className="px-6 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium shadow-md transition-all duration-200 hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-offset-2"
+          className="px-6 py-2 bg-red-500/90 hover:bg-red-600 backdrop-blur-sm text-white rounded-xl font-medium shadow-lg hover:shadow-red-500/30 transition-all duration-200 hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-offset-2"
           aria-label="Arrêter l'exercice"
         >
           Arrêter l'exercice
@@ -40,7 +40,7 @@ export function ExerciseControls({
       {canClear && (
         <button
           onClick={onClear}
-          className="px-6 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg font-medium shadow-md transition-all duration-200 hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2"
+          className="px-6 py-2 bg-deep-600/90 hover:bg-deep-700 backdrop-blur-sm text-white rounded-xl font-medium shadow-lg transition-all duration-200 hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-deep-400 focus:ring-offset-2"
           aria-label="Effacer la sélection"
         >
           Effacer la sélection
@@ -51,7 +51,7 @@ export function ExerciseControls({
       {onToggleSound && (
         <button
           onClick={onToggleSound}
-          className="px-4 py-2 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg font-medium shadow-sm transition-all duration-200 hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2"
+          className="px-4 py-2 bg-synapse-100 hover:bg-synapse-200 text-synapse-700 rounded-xl font-medium shadow-sm transition-all duration-200 hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-synapse-400 focus:ring-offset-2"
           aria-label={isSoundMuted ? 'Activer le son' : 'Désactiver le son'}
           title={isSoundMuted ? 'Activer le son' : 'Désactiver le son'}
         >
