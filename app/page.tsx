@@ -145,8 +145,8 @@ export default function HomePage() {
 
         {/* Layout 2 colonnes : Chat (gauche) + Exercise (droite) */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1 min-h-0">
-          {/* Colonne Chat (4 cols) - scroll interne isolé */}
-          <div className="lg:col-span-4 min-h-0">
+          {/* Colonne Chat (5 cols ≈ 42%) - scroll interne isolé */}
+          <div className="lg:col-span-5 min-h-0">
             <div className="h-full neuro-card rounded-3xl overflow-hidden flex flex-col shadow-xl ring-1 ring-white/50">
               <ChatContainer
                 exercise={exercise}
@@ -156,8 +156,8 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* Colonne Exercise (8 cols) - fixe, pas de scroll */}
-          <div className="lg:col-span-8 min-h-0">
+          {/* Colonne Exercise (7 cols ≈ 58%) - fixe, pas de scroll */}
+          <div className="lg:col-span-7 min-h-0">
             <div className="h-full neuro-card rounded-3xl p-6 lg:p-8 shadow-xl ring-1 ring-white/50 relative overflow-hidden flex flex-col items-center justify-center">
               {/* Background accent for exercise area */}
               <div className="absolute inset-0 bg-gradient-to-br from-indigo-50/50 to-white/50 pointer-events-none -z-10" />
