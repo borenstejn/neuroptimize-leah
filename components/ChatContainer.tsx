@@ -63,6 +63,7 @@ export function ChatContainer({
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const streamingEndRef = useRef<HTMLDivElement>(null);
   const bufferRef = useRef(''); // Ref pour accéder au buffer dans l'intervalle
+  const displayedLengthRef = useRef(0); // Ref pour suivre la longueur affichée
 
   // Configuration de la vitesse d'affichage
   // ~250 mots/min = ~1250 caractères/min = ~21 caractères/seconde
@@ -98,7 +99,9 @@ export function ChatContainer({
         }
         // Ajouter quelques caractères à la fois
         const nextLength = Math.min(prev.length + CHARS_PER_TICK, currentBuffer.length);
-        return currentBuffer.slice(0, nextLength);
+        const newContent = currentBuffer.slice(0, nextLength);
+        displayedLengthRef.current = newContent.length;
+        return newContent;
       });
     }, TICK_INTERVAL);
 
@@ -128,6 +131,7 @@ export function ChatContainer({
       setIsStreaming(true);
       setDisplayedContent('');
       bufferRef.current = '';
+      displayedLengthRef.current = 0;
       setIsAwaitingResponse(true);
 
       // Créer un AbortController pour pouvoir annuler
@@ -183,10 +187,10 @@ export function ChatContainer({
           }
         }
 
-        // Attendre que tout le contenu soit affiché
+        // Attendre que tout le contenu soit affiché (utilise ref pour valeur à jour)
         await new Promise<void>((resolve) => {
           const checkDisplayed = setInterval(() => {
-            if (displayedContent.length >= fullContent.length || !isStreaming) {
+            if (displayedLengthRef.current >= fullContent.length) {
               clearInterval(checkDisplayed);
               resolve();
             }
@@ -195,7 +199,7 @@ export function ChatContainer({
           setTimeout(() => {
             clearInterval(checkDisplayed);
             resolve();
-          }, 10000);
+          }, 15000);
         });
 
         // Petit délai pour finir d'afficher le reste
@@ -208,6 +212,7 @@ export function ChatContainer({
         setIsStreaming(false);
         setDisplayedContent('');
         bufferRef.current = '';
+        displayedLengthRef.current = 0;
 
         const assistantMsg: Message = {
           role: 'assistant',
@@ -230,6 +235,7 @@ export function ChatContainer({
         setIsStreaming(false);
         setDisplayedContent('');
         bufferRef.current = '';
+        displayedLengthRef.current = 0;
         const errorMsg: Message = {
           role: 'assistant',
           content: "Désolé, j'ai rencontré un problème technique. Peux-tu réessayer ?",
@@ -241,7 +247,7 @@ export function ChatContainer({
         abortControllerRef.current = null;
       }
     },
-    [exercise, conversationHistory, selectedExercise, displayedContent, isStreaming]
+    [exercise, conversationHistory, selectedExercise]
   );
 
   /**

@@ -342,7 +342,7 @@ export function useExerciseState(exerciseType: ExerciseType = 'neural_network') 
   );
 
   /**
-   * Arrête l'exercice (retour à intro)
+   * Arrête l'exercice (retour à intro) avec message
    */
   const stopExercise = useCallback(() => {
     setPhase('intro');
@@ -356,6 +356,20 @@ export function useExerciseState(exerciseType: ExerciseType = 'neural_network') 
         content: 'Exercice arrêté. À bientôt !',
       },
     ]);
+
+    // Nettoyer les timers
+    if (encodingTimerRef.current) clearTimeout(encodingTimerRef.current);
+    if (retentionTimerRef.current) clearTimeout(retentionTimerRef.current);
+  }, []);
+
+  /**
+   * Reset silencieux (pour changement d'exercice, sans message)
+   */
+  const resetExercise = useCallback(() => {
+    setPhase('intro');
+    setUserSequence([]);
+    setCurrentResult(undefined);
+    setEncodingIndex(0);
 
     // Nettoyer les timers
     if (encodingTimerRef.current) clearTimeout(encodingTimerRef.current);
@@ -415,6 +429,7 @@ export function useExerciseState(exerciseType: ExerciseType = 'neural_network') 
     handleNeuronClick,
     handleWordClick,
     stopExercise,
+    resetExercise,
     clearSelection,
     continueExercise,
     addMessage,

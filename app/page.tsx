@@ -21,7 +21,7 @@ export default function HomePage() {
 
   const handleExerciseSelect = (type: ExerciseType) => {
     setSelectedExercise(type);
-    exercise.stopExercise();
+    exercise.resetExercise(); // Reset silencieux sans message "Exercice arrêté"
   };
 
   const handleStartChat = () => {
