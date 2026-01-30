@@ -80,6 +80,7 @@ export function useExerciseState() {
 
     const animateEncoding = () => {
       if (currentIndex < currentSequence.length) {
+        console.log('[ENCODING] Index:', currentIndex + 1, 'Position:', currentSequence[currentIndex]);
         setEncodingIndex(currentIndex + 1);
         sound.play(); // Jouer le son "bip" (Ticket #21)
         currentIndex++;
@@ -122,6 +123,9 @@ export function useExerciseState() {
   const handleNeuronClick = useCallback(
     (position: Position) => {
       if (phase !== 'recall') return;
+
+      // Ne pas permettre de cliquer plus que la longueur de la séquence
+      if (userSequence.length >= currentSequence.length) return;
 
       // Jouer le son lors du clic (Ticket #21)
       sound.play();
@@ -243,6 +247,13 @@ export function useExerciseState() {
   }, [startExercise]);
 
   // État complet pour l'UI
+  /**
+   * Ajoute un message au chat (pour conversation libre avec Max)
+   */
+  const addMessage = useCallback((message: Message) => {
+    setMessages((prev) => [...prev, message]);
+  }, []);
+
   const state: ExerciseState = {
     phase,
     level,
@@ -270,6 +281,7 @@ export function useExerciseState() {
     stopExercise,
     clearSelection,
     continueExercise,
+    addMessage,
 
     // Contrôles audio (Ticket #21)
     isSoundMuted: sound.isMuted,

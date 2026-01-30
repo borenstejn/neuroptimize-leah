@@ -6,6 +6,7 @@
 'use client';
 
 import Image from 'next/image';
+import ReactMarkdown from 'react-markdown';
 import type { Message } from '@/types/exercise';
 
 export type MessageBubbleProps = {
@@ -42,27 +43,29 @@ export function MessageBubble({ message }: MessageBubbleProps) {
             : 'bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-tr-none'
         }`}
       >
-        <p className="text-sm md:text-base leading-relaxed whitespace-pre-wrap">
-          {message.content}
-        </p>
-
-        {/* Boutons de réponse rapide (si présents) */}
-        {message.buttons && message.buttons.length > 0 && (
-          <div className="mt-3 flex flex-wrap gap-2">
-            {message.buttons.map((button, index) => (
-              <button
-                key={index}
-                className="px-4 py-2 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg text-sm font-medium transition-colors duration-200"
-                onClick={() => {
-                  // Cette logique sera gérée par le parent (ChatContainer)
-                  console.log('Button clicked:', button);
-                }}
-              >
-                {button}
-              </button>
-            ))}
-          </div>
-        )}
+        <div className="text-sm md:text-base leading-relaxed prose prose-sm max-w-none">
+          <ReactMarkdown
+            components={{
+              // Personnalisation des éléments markdown
+              p: ({ children }) => <p className="mb-3 last:mb-0">{children}</p>,
+              strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+              em: ({ children }) => <em className="italic">{children}</em>,
+              ul: ({ children }) => <ul className="list-disc list-inside mb-3">{children}</ul>,
+              ol: ({ children }) => <ol className="list-decimal list-inside mb-3">{children}</ol>,
+              li: ({ children }) => <li className="mb-1">{children}</li>,
+              h1: ({ children }) => <h1 className="text-lg font-bold mb-2">{children}</h1>,
+              h2: ({ children }) => <h2 className="text-base font-bold mb-2">{children}</h2>,
+              h3: ({ children }) => <h3 className="text-sm font-bold mb-2">{children}</h3>,
+              code: ({ children }) => (
+                <code className="bg-gray-100 text-gray-800 px-1 py-0.5 rounded text-xs">
+                  {children}
+                </code>
+              ),
+            }}
+          >
+            {message.content}
+          </ReactMarkdown>
+        </div>
       </div>
 
       {/* Espace pour alignement des messages utilisateur */}

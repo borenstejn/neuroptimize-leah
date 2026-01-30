@@ -10,13 +10,92 @@ import { useState, useCallback } from 'react';
 import { MessageList } from './MessageList';
 import { QuickReplyButtons } from './QuickReplyButtons';
 import { TypingIndicator } from './TypingIndicator';
+import { ChatInput } from './ChatInput';
 import { useExerciseState } from '@/hooks/useExerciseState';
 import { generateFeedback } from '@/lib/feedback';
 import type { Message } from '@/types/exercise';
 
-export function ChatContainer() {
-  const exercise = useExerciseState();
+interface ChatContainerProps {
+  exercise: ReturnType<typeof useExerciseState>;
+}
+
+export function ChatContainer({ exercise }: ChatContainerProps) {
   const [isTyping, setIsTyping] = useState(false);
+  const [conversationHistory, setConversationHistory] = useState<
+    Array<{ role: 'user' | 'assistant'; content: string }>
+  >([]);
+  const [isAwaitingResponse, setIsAwaitingResponse] = useState(false);
+
+  /**
+   * Gestion de l'envoi d'un message libre à Max
+   */
+  const handleSendMessage = useCallback(
+    async (userMessage: string) => {
+      // Ajouter le message utilisateur
+      const userMsg: Message = {
+        role: 'user',
+        content: userMessage,
+      };
+      exercise.addMessage(userMsg);
+
+      // Ajouter à l'historique de conversation
+      const newHistory = [
+        ...conversationHistory,
+        { role: 'user' as const, content: userMessage },
+      ];
+      setConversationHistory(newHistory);
+
+      // Afficher le typing indicator
+      setIsTyping(true);
+      setIsAwaitingResponse(true);
+
+      try {
+        // Appeler l'API
+        const response = await fetch('/api/chat', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            messages: newHistory,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to get response');
+        }
+
+        const data = await response.json();
+        const assistantMessage = data.message;
+
+        // Ajouter la réponse de Max
+        const assistantMsg: Message = {
+          role: 'assistant',
+          content: assistantMessage,
+        };
+        exercise.addMessage(assistantMsg);
+
+        // Mettre à jour l'historique
+        setConversationHistory([
+          ...newHistory,
+          { role: 'assistant', content: assistantMessage },
+        ]);
+      } catch (error) {
+        console.error('Error sending message:', error);
+        // Message d'erreur
+        const errorMsg: Message = {
+          role: 'assistant',
+          content:
+            "Désolé, j'ai rencontré un problème technique. Peux-tu réessayer ?",
+        };
+        exercise.addMessage(errorMsg);
+      } finally {
+        setIsTyping(false);
+        setIsAwaitingResponse(false);
+      }
+    },
+    [exercise, conversationHistory]
+  );
 
   /**
    * Gestion des clics sur les boutons de réponse rapide
@@ -79,10 +158,19 @@ export function ChatContainer() {
           <QuickReplyButtons
             options={quickReplyButtons}
             onSelect={handleQuickReply}
-            disabled={exercise.isLoading}
+            disabled={exercise.isLoading || isAwaitingResponse}
           />
         </div>
       )}
+
+      {/* Chat Input - Toujours visible pour converser avec Max */}
+      <div className="flex-shrink-0 px-6 py-4 border-t border-gray-200 bg-gray-50">
+        <ChatInput
+          onSendMessage={handleSendMessage}
+          disabled={isAwaitingResponse}
+          placeholder="Posez une question à Max sur la remédiation cognitive..."
+        />
+      </div>
 
       {/* Status bar (dev only) */}
       {process.env.NODE_ENV === 'development' && (
