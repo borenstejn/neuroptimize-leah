@@ -29,14 +29,14 @@ export default function HomePage() {
         </header>
 
         {/* Layout 2 colonnes : Chat (gauche) + NeuralNetwork (droite) */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
-          {/* Colonne Chat */}
-          <div className="flex flex-col">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 items-start">
+          {/* Colonne Chat avec hauteur fixe et sticky */}
+          <div className="flex flex-col h-[calc(100vh-12rem)] lg:sticky lg:top-4">
             <ChatContainer exercise={exercise} />
           </div>
 
-          {/* Colonne NeuralNetwork + Controls */}
-          <div className="flex flex-col items-center justify-center">
+          {/* Colonne NeuralNetwork + Controls avec sticky */}
+          <div className="flex flex-col items-center justify-start lg:sticky lg:top-4">
             <NeuralNetwork
               sequence={exercise.currentSequence}
               userSequence={exercise.userSequence}

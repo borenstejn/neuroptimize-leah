@@ -16,24 +16,29 @@ export type MessageListProps = {
 export function MessageList({ messages }: MessageListProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const previousLengthRef = useRef(messages.length);
 
   /**
-   * Auto-scroll vers le bas quand de nouveaux messages arrivent
+   * Auto-scroll vers le bas UNIQUEMENT quand un nouveau message est ajouté
+   * (pas sur chaque re-render ou modification du tableau)
    */
   useEffect(() => {
-    if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({
-        behavior: 'smooth',
-        block: 'end',
-      });
+    // Ne scroller que si un NOUVEAU message a été ajouté
+    if (messages.length > previousLengthRef.current) {
+      if (messagesEndRef.current) {
+        messagesEndRef.current.scrollIntoView({
+          behavior: 'smooth',
+          block: 'end',
+        });
+      }
     }
+    previousLengthRef.current = messages.length;
   }, [messages]);
 
   return (
     <div
       ref={containerRef}
-      className="flex-1 overflow-y-auto p-4 space-y-2 scroll-smooth"
-      style={{ maxHeight: 'calc(100vh - 200px)' }}
+      className="p-4 space-y-2"
     >
       {messages.length === 0 ? (
         <div className="flex items-center justify-center h-full text-gray-400">

@@ -210,8 +210,8 @@ export function ChatContainer({ exercise }: ChatContainerProps) {
         </p>
       </div>
 
-      {/* Messages */}
-      <div className="flex-1 overflow-hidden">
+      {/* Messages - Zone scrollable */}
+      <div className="flex-1 overflow-y-auto">
         <MessageList messages={exercise.messages} />
         {isTyping && <TypingIndicator />}
       </div>
