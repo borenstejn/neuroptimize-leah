@@ -37,7 +37,7 @@ export function useExerciseState() {
     {
       role: 'assistant',
       content: FALLBACK_MESSAGES.intro,
-      buttons: ['Commencer'],
+      // Pas de bouton hardcodé - Max décide quand proposer "Commencer l'exercice"
     },
   ]);
   const [isLoading, setIsLoading] = useState(false);

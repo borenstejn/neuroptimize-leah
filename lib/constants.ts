@@ -28,7 +28,11 @@ export const LEVEL_DOWN_ON_FAIL = true; // Descendre d'un niveau en cas d'échec
 
 // Messages système (fallback)
 export const FALLBACK_MESSAGES = {
-  intro: "Bonjour. Je suis Max, spécialisé en remédiation cognitive. Cet exercice va entraîner ta mémoire de travail visuo-spatiale. Tu vas observer une séquence d'activations, puis la reproduire. Elle ne s'affichera qu'une fois. Prêt ?",
+  intro: `Bonjour ! Je suis Max, spécialisé en remédiation cognitive.
+
+Je suis là pour t'accompagner dans l'entraînement de tes capacités cognitives, notamment ta mémoire de travail.
+
+N'hésite pas à me poser des questions ou à me dire ce que tu aimerais travailler !`,
   encoding: "Observe bien la séquence. Elle ne s'affichera qu'une fois.",
   retention: "Mémorise bien la séquence. À toi dans 2 secondes...",
   recall: "À toi. Clique sur les neurones dans le même ordre.",

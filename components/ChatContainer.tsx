@@ -67,11 +67,13 @@ export function ChatContainer({ exercise }: ChatContainerProps) {
 
         const data = await response.json();
         const assistantMessage = data.message;
+        const buttons = data.buttons; // Extraire les boutons de l'API
 
-        // Ajouter la réponse de Max
+        // Ajouter la réponse de Max avec boutons
         const assistantMsg: Message = {
           role: 'assistant',
           content: assistantMessage,
+          buttons: buttons, // Attacher les boutons au message
         };
         exercise.addMessage(assistantMsg);
 
@@ -98,27 +100,89 @@ export function ChatContainer({ exercise }: ChatContainerProps) {
   );
 
   /**
+   * Map button labels to actions
+   * Supports both exact matches and fuzzy matching for flexibility
+   */
+  const mapButtonToAction = useCallback(
+    (buttonLabel: string): (() => void) | null => {
+      const normalized = buttonLabel.toLowerCase().trim();
+
+      // Exercise control actions
+      if (
+        normalized.includes('commencer') ||
+        normalized.includes('démarrer') ||
+        normalized.includes("lancer")
+      ) {
+        return () => {
+          setIsTyping(true);
+          setTimeout(() => {
+            exercise.startExercise();
+            setIsTyping(false);
+          }, 1000);
+        };
+      }
+
+      if (normalized.includes('continuer') || normalized === 'suivant') {
+        return () => {
+          setIsTyping(true);
+          setTimeout(() => {
+            exercise.continueExercise();
+            setIsTyping(false);
+          }, 800);
+        };
+      }
+
+      if (normalized.includes('arrêter') || normalized === 'stop') {
+        return () => {
+          exercise.stopExercise();
+        };
+      }
+
+      // Conversational actions - trigger a pre-defined user message
+      if (normalized.includes('en savoir plus')) {
+        return () => {
+          handleSendMessage("Peux-tu m'en dire plus sur ce sujet ?");
+        };
+      }
+
+      if (normalized.includes('stratégie') || normalized.includes('astuce')) {
+        return () => {
+          handleSendMessage('Quelles stratégies peux-tu me conseiller pour mieux mémoriser ?');
+        };
+      }
+
+      if (normalized.includes('question')) {
+        return () => {
+          handleSendMessage('Je voudrais poser une question.');
+        };
+      }
+
+      if (normalized.includes('hippocampe')) {
+        return () => {
+          handleSendMessage("Comment fonctionne l'hippocampe exactement ?");
+        };
+      }
+
+      // Default: send the button text as a user message
+      // This handles any custom buttons Claude might suggest
+      return () => {
+        handleSendMessage(buttonLabel);
+      };
+    },
+    [exercise, handleSendMessage]
+  );
+
+  /**
    * Gestion des clics sur les boutons de réponse rapide
    */
   const handleQuickReply = useCallback(
     (option: string) => {
-      if (option === 'Commencer') {
-        setIsTyping(true);
-        setTimeout(() => {
-          exercise.startExercise();
-          setIsTyping(false);
-        }, 1000);
-      } else if (option === 'Continuer') {
-        setIsTyping(true);
-        setTimeout(() => {
-          exercise.continueExercise();
-          setIsTyping(false);
-        }, 800);
-      } else if (option === 'Arrêter') {
-        exercise.stopExercise();
+      const action = mapButtonToAction(option);
+      if (action) {
+        action();
       }
     },
-    [exercise]
+    [mapButtonToAction]
   );
 
   /**

@@ -33,9 +33,15 @@ export function Neuron({ state, onClick, position, disabled = false }: NeuronPro
     }
   };
 
+  const fullClassName = `${baseClass} ${stateClasses[state]} ${cursorClass}`;
+
+  if (state === 'active') {
+    console.log('[NEURON RENDER] Active neuron at', position, 'classes:', fullClassName);
+  }
+
   return (
     <button
-      className={`${baseClass} ${stateClasses[state]} ${cursorClass}`}
+      className={fullClassName}
       onClick={handleClick}
       onKeyDown={handleKeyDown}
       disabled={disabled}

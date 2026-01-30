@@ -17,27 +17,38 @@ export function NeuralNetwork({
   onNeuronClick,
   encodingIndex,
 }: NeuralNetworkProps & { encodingIndex?: number }) {
+  console.log('[NEURAL NETWORK] phase:', phase, 'encodingIndex:', encodingIndex, 'sequence length:', sequence.length);
+
   /**
    * Détermine l'état visuel d'un neurone à une position donnée
    */
   const getNeuronState = (position: Position): NeuronState => {
-    // Pendant l'encoding: afficher les neurones actifs progressivement
-    if (phase === 'encoding' && encodingIndex !== undefined) {
-      const isInSequence = sequence
-        .slice(0, encodingIndex)
-        .some((pos) => isSamePosition(pos, position));
-      return isInSequence ? 'active' : 'idle';
+    // Pendant l'encoding: afficher seulement le neurone actuellement actif
+    if (phase === 'encoding' && encodingIndex !== undefined && encodingIndex > 0) {
+      const currentActiveIndex = encodingIndex - 1;
+      const currentActivePosition = sequence[currentActiveIndex];
+      const isActive = isSamePosition(position, currentActivePosition);
+      if (isActive) {
+        console.log('[NEURON STATE] Active at', position, 'encodingIndex:', encodingIndex);
+      }
+      return isActive ? 'active' : 'idle';
     }
 
     // Pendant le feedback: afficher correct/wrong
     if (phase === 'feedback') {
-      const userIndex = userSequence.findIndex((pos) =>
-        isSamePosition(pos, position)
-      );
-      if (userIndex !== -1) {
-        const expectedPos = sequence[userIndex];
-        const isCorrect = isSamePosition(position, expectedPos);
-        return isCorrect ? 'correct' : 'wrong';
+      // Chercher toutes les occurrences de cette position dans userSequence
+      for (let i = 0; i < userSequence.length; i++) {
+        if (isSamePosition(userSequence[i], position)) {
+          // Cette position a été cliquée à l'index i
+          // Vérifier si elle correspond à sequence[i]
+          if (i < sequence.length) {
+            const isCorrect = isSamePosition(position, sequence[i]);
+            return isCorrect ? 'correct' : 'wrong';
+          } else {
+            // L'utilisateur a cliqué plus que nécessaire
+            return 'wrong';
+          }
+        }
       }
     }
 

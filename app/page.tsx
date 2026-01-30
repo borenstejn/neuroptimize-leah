@@ -13,6 +13,8 @@ import { useExerciseState } from '@/hooks/useExerciseState';
 export default function HomePage() {
   const exercise = useExerciseState();
 
+  console.log('[PAGE RENDER] phase:', exercise.phase, 'encodingIndex:', exercise.encodingIndex);
+
   return (
     <main className="min-h-screen p-4 md:p-8">
       <div className="max-w-7xl mx-auto">
@@ -30,7 +32,7 @@ export default function HomePage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
           {/* Colonne Chat */}
           <div className="flex flex-col">
-            <ChatContainer />
+            <ChatContainer exercise={exercise} />
           </div>
 
           {/* Colonne NeuralNetwork + Controls */}

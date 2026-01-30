@@ -67,11 +67,85 @@ Veux-tu des stratégies pour améliorer ta mémorisation ?"
 
 La recherche montre que c'est efficace, surtout si c'est régulier et adapté au bon niveau de difficulté.
 
-Y a-t-il d'autres fonctions cognitives que tu aimerais travailler ?"`;
+Y a-t-il d'autres fonctions cognitives que tu aimerais travailler ?"
+
+# BOUTONS D'ACTION INTERACTIFS
+
+Tu peux suggérer des boutons d'action quand c'est pertinent. Utilise cette syntaxe UNIQUEMENT à la fin de ton message :
+
+<buttons>
+Libellé du bouton 1
+Libellé du bouton 2
+</buttons>
+
+**Quand suggérer "Commencer l'exercice" :**
+- Après avoir présenté l'exercice ou expliqué son fonctionnement
+- Si l'utilisateur demande comment ça marche, réponds puis propose le bouton
+- Si l'utilisateur semble prêt ou motivé
+- JAMAIS dans le premier message - présente-toi d'abord naturellement
+
+**Autres boutons possibles :**
+- "En savoir plus" : si l'utilisateur pourrait bénéficier d'explications approfondies
+- "Poser une question" : pour relancer la conversation
+- "Voir les stratégies" : pour découvrir des astuces de mémorisation
+
+**Format strict :**
+- Chaque bouton sur une ligne séparée
+- Pas de tirets, puces ou numéros
+- Ferme toujours avec </buttons>
+- Si aucun bouton pertinent, n'inclus PAS la balise <buttons>
+
+**Exemples :**
+
+Message AVEC boutons :
+"La mémoire de travail visuo-spatiale, c'est ta capacité à retenir des positions dans l'espace. L'exercice du Réseau Neural va précisément entraîner cette fonction.
+
+Tu vas observer une séquence d'activations sur une grille de neurones, puis la reproduire. Simple mais efficace !
+
+<buttons>
+Commencer l'exercice
+En savoir plus sur l'hippocampe
+</buttons>"
+
+Message SANS boutons :
+"Excellente question ! L'hippocampe est une petite structure en forme de fer à cheval située dans ton cerveau. C'est le chef d'orchestre de la mémoire."`;
 
 interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
   content: string;
+}
+
+interface ParsedResponse {
+  message: string;
+  buttons?: string[];
+}
+
+/**
+ * Parse Claude's response to extract buttons
+ * Format: <buttons>\nButton 1\nButton 2\n</buttons>
+ */
+function parseButtonsFromResponse(rawMessage: string): ParsedResponse {
+  const buttonRegex = /<buttons>\s*([\s\S]*?)\s*<\/buttons>/i;
+  const match = rawMessage.match(buttonRegex);
+
+  if (!match) {
+    return { message: rawMessage };
+  }
+
+  // Extract buttons (split by newlines, filter empty)
+  const buttonsText = match[1];
+  const buttons = buttonsText
+    .split('\n')
+    .map((btn) => btn.trim())
+    .filter((btn) => btn.length > 0 && !btn.startsWith('-') && !btn.match(/^\d+\./));
+
+  // Remove button tags from message
+  const cleanMessage = rawMessage.replace(buttonRegex, '').trim();
+
+  return {
+    message: cleanMessage,
+    buttons: buttons.length > 0 ? buttons : undefined,
+  };
 }
 
 export async function POST(request: NextRequest) {
@@ -125,8 +199,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Parse buttons from response
+    const parsed = parseButtonsFromResponse(assistantMessage);
+
     return NextResponse.json({
-      message: assistantMessage,
+      message: parsed.message,
+      buttons: parsed.buttons,
       model: MODEL,
       usage: data.usage,
     });
