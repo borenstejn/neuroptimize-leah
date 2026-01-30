@@ -6,7 +6,7 @@
 
 'use client';
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { MessageList } from './MessageList';
 import { QuickReplyButtons } from './QuickReplyButtons';
 import { TypingIndicator } from './TypingIndicator';
@@ -51,16 +51,59 @@ export function ChatContainer({
   selectedExercise,
   onExerciseSelect
 }: ChatContainerProps) {
-  const [isTyping, setIsTyping] = useState(false); // Pour les transitions d'exercice
-  const [isStreaming, setIsStreaming] = useState(false); // Pour le streaming des messages
-  const [streamingContent, setStreamingContent] = useState('');
+  const [isTyping, setIsTyping] = useState(false);
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [displayedContent, setDisplayedContent] = useState(''); // Contenu affiché progressivement
   const [conversationHistory, setConversationHistory] = useState<
     Array<{ role: 'user' | 'assistant'; content: string }>
   >([]);
   const [isAwaitingResponse, setIsAwaitingResponse] = useState(false);
+
   const abortControllerRef = useRef<AbortController | null>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const streamingEndRef = useRef<HTMLDivElement>(null);
+  const bufferRef = useRef(''); // Ref pour accéder au buffer dans l'intervalle
+
+  // Configuration de la vitesse d'affichage
+  // ~250 mots/min = ~1250 caractères/min = ~21 caractères/seconde
+  // Soit environ 2-3 caractères tous les 100ms pour un rythme de lecture confortable
+  const CHARS_PER_TICK = 2;
+  const TICK_INTERVAL = 50; // ms - affiche 2 caractères toutes les 50ms = 40 char/sec
 
   const currentExerciseConfig = EXERCISES[selectedExercise];
+
+  /**
+   * Auto-scroll vers le bas pendant le streaming
+   */
+  useEffect(() => {
+    if ((isStreaming || isTyping) && streamingEndRef.current) {
+      streamingEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    }
+  }, [displayedContent, isStreaming, isTyping]);
+
+  /**
+   * Affichage progressif du contenu (buffer -> displayed)
+   */
+  useEffect(() => {
+    if (!isStreaming) {
+      return;
+    }
+
+    const interval = setInterval(() => {
+      const currentBuffer = bufferRef.current;
+
+      setDisplayedContent((prev) => {
+        if (prev.length >= currentBuffer.length) {
+          return prev;
+        }
+        // Ajouter quelques caractères à la fois
+        const nextLength = Math.min(prev.length + CHARS_PER_TICK, currentBuffer.length);
+        return currentBuffer.slice(0, nextLength);
+      });
+    }, TICK_INTERVAL);
+
+    return () => clearInterval(interval);
+  }, [isStreaming]);
 
   /**
    * Gestion de l'envoi d'un message avec streaming
@@ -83,7 +126,8 @@ export function ChatContainer({
 
       // Préparer le streaming
       setIsStreaming(true);
-      setStreamingContent('');
+      setDisplayedContent('');
+      bufferRef.current = '';
       setIsAwaitingResponse(true);
 
       // Créer un AbortController pour pouvoir annuler
@@ -129,7 +173,7 @@ export function ChatContainer({
                   const parsed = JSON.parse(data);
                   if (parsed.content) {
                     fullContent += parsed.content;
-                    setStreamingContent(fullContent);
+                    bufferRef.current = fullContent;
                   }
                 } catch {
                   // Ignorer les erreurs de parsing
@@ -139,12 +183,31 @@ export function ChatContainer({
           }
         }
 
+        // Attendre que tout le contenu soit affiché
+        await new Promise<void>((resolve) => {
+          const checkDisplayed = setInterval(() => {
+            if (displayedContent.length >= fullContent.length || !isStreaming) {
+              clearInterval(checkDisplayed);
+              resolve();
+            }
+          }, 100);
+          // Timeout de sécurité
+          setTimeout(() => {
+            clearInterval(checkDisplayed);
+            resolve();
+          }, 10000);
+        });
+
+        // Petit délai pour finir d'afficher le reste
+        await new Promise((resolve) => setTimeout(resolve, 500));
+
         // Streaming terminé - parser les boutons et finaliser
         const { message: cleanMessage, buttons } = parseButtonsFromText(fullContent);
 
         // Remplacer le contenu streaming par le message final avec boutons
         setIsStreaming(false);
-        setStreamingContent('');
+        setDisplayedContent('');
+        bufferRef.current = '';
 
         const assistantMsg: Message = {
           role: 'assistant',
@@ -165,7 +228,8 @@ export function ChatContainer({
         }
         console.error('Error sending message:', error);
         setIsStreaming(false);
-        setStreamingContent('');
+        setDisplayedContent('');
+        bufferRef.current = '';
         const errorMsg: Message = {
           role: 'assistant',
           content: "Désolé, j'ai rencontré un problème technique. Peux-tu réessayer ?",
@@ -177,12 +241,11 @@ export function ChatContainer({
         abortControllerRef.current = null;
       }
     },
-    [exercise, conversationHistory, selectedExercise]
+    [exercise, conversationHistory, selectedExercise, displayedContent, isStreaming]
   );
 
   /**
    * Map button labels to actions
-   * Supports both exact matches and fuzzy matching for flexibility
    */
   const mapButtonToAction = useCallback(
     (buttonLabel: string): (() => void) | null => {
@@ -234,7 +297,7 @@ export function ChatContainer({
         };
       }
 
-      // Conversational actions - trigger a pre-defined user message
+      // Conversational actions
       if (normalized.includes('en savoir plus')) {
         return () => {
           handleSendMessage("Peux-tu m'en dire plus sur ce sujet ?");
@@ -260,7 +323,6 @@ export function ChatContainer({
       }
 
       // Default: send the button text as a user message
-      // This handles any custom buttons Claude might suggest
       return () => {
         handleSendMessage(buttonLabel);
       };
@@ -294,6 +356,9 @@ export function ChatContainer({
 
   const quickReplyButtons = getQuickReplyButtons();
 
+  // Nettoyer le contenu affiché (sans les balises <buttons>)
+  const cleanDisplayedContent = displayedContent.replace(/<buttons>[\s\S]*?<\/buttons>/gi, '').replace(/<buttons>[\s\S]*/gi, '');
+
   return (
     <div className="flex flex-col h-full">
       {/* Header Glass */}
@@ -307,18 +372,18 @@ export function ChatContainer({
       </div>
 
       {/* Messages - Zone scrollable */}
-      <div className="flex-1 overflow-y-auto scrollbar-thin p-4">
+      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto scrollbar-thin p-4">
         <MessageList messages={exercise.messages} />
 
         {/* Message en cours de streaming */}
-        {isStreaming && streamingContent && (
-          <div className="flex items-start gap-3 mb-4">
+        {isStreaming && cleanDisplayedContent && (
+          <div className="flex items-start gap-3 mb-4 animate-fade-in">
             <div className="w-10 h-10 rounded-full bg-synapse-500 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
               M
             </div>
             <div className="flex-1 bg-white/60 backdrop-blur-sm rounded-2xl rounded-tl-md px-4 py-3 shadow-sm">
               <p className="text-deep-900 whitespace-pre-wrap leading-relaxed">
-                {streamingContent.replace(/<buttons>[\s\S]*?<\/buttons>/gi, '')}
+                {cleanDisplayedContent}
                 <span className="inline-block w-2 h-4 bg-synapse-500 ml-1 animate-pulse rounded-sm align-middle" />
               </p>
             </div>
@@ -326,7 +391,10 @@ export function ChatContainer({
         )}
 
         {/* Typing indicator pour transitions ou début de streaming */}
-        {(isTyping || (isStreaming && !streamingContent)) && <TypingIndicator />}
+        {(isTyping || (isStreaming && !cleanDisplayedContent)) && <TypingIndicator />}
+
+        {/* Élément invisible pour l'auto-scroll */}
+        <div ref={streamingEndRef} className="h-1" />
       </div>
 
       {/* Quick Reply Buttons */}
